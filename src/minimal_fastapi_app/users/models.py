@@ -3,7 +3,7 @@ from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from sqlalchemy import Column, DateTime, Integer, String
-from sqlalchemy.orm import declarative_base
+from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
 
@@ -78,3 +78,9 @@ class UserORM(Base):
     email = Column(String(255), unique=True, nullable=False, index=True)
     age = Column(Integer, nullable=True)
     created_at = Column(DateTime, nullable=False)
+    projects = relationship(
+        "ProjectORM",
+        secondary="user_project_association",
+        back_populates="users",
+        lazy="selectin",
+    )

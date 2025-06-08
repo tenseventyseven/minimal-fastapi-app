@@ -17,6 +17,7 @@ from minimal_fastapi_app.core.middleware import RequestLoggingMiddleware
 from minimal_fastapi_app.core.models import HealthCheck, StatusResponse
 from minimal_fastapi_app.users.models import Base as UserBase
 from minimal_fastapi_app.users.router import router as users_router
+from minimal_fastapi_app.projects.router import router as projects_router
 
 # Configure logging before creating logger
 configure_logging()
@@ -106,6 +107,7 @@ def validation_exception_handler(request: Request, exc: FastAPIRequestValidation
 
 # Include routers with proper prefix
 app.include_router(users_router, tags=["users"])
+app.include_router(projects_router, tags=["projects"])
 
 
 @app.get("/", response_model=StatusResponse)

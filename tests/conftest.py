@@ -6,6 +6,7 @@ import pytest
 from minimal_fastapi_app.core.db import get_engine
 from minimal_fastapi_app.users.models import Base as UserBase
 from minimal_fastapi_app.users.models import UserORM
+from minimal_fastapi_app.projects.models import ProjectORM
 
 # Always set the async driver for SQLite before any app import
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///./app.db"
@@ -38,6 +39,23 @@ def clean_users_table():
         engine = get_engine()
         async with engine.begin() as conn:
             await conn.execute(UserORM.__table__.delete())
+
+    asyncio.run(_truncate())
+    yield
+
+
+@pytest.fixture(autouse=True)
+def clean_projects_table():
+    """Truncate the projects and association tables before each test for isolation."""
+
+    async def _truncate():
+        engine = get_engine()
+        async with engine.begin() as conn:
+            await conn.execute(ProjectORM.__table__.delete())
+            # Also clear association table
+            from minimal_fastapi_app.projects.models import user_project_association
+
+            await conn.execute(user_project_association.delete())
 
     asyncio.run(_truncate())
     yield
