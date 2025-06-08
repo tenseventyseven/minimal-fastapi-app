@@ -1,12 +1,15 @@
-from fastapi.testclient import TestClient
+import pytest
+from httpx import ASGITransport, AsyncClient
 
 from minimal_fastapi_app.main import app
 
-client = TestClient(app)
 
-
-def test_read_root():
-    response = client.get("/")
+@pytest.mark.asyncio
+async def test_read_root():
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        response = await ac.get("/")
     assert response.status_code == 200
     data = response.json()
     assert data["message"] == "Hello World"
@@ -15,14 +18,22 @@ def test_read_root():
     assert "version" in data
 
 
-def test_health_check():
-    response = client.get("/health")
+@pytest.mark.asyncio
+async def test_health_check():
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        response = await ac.get("/health")
     assert response.status_code == 200
     assert response.json() == {"status": "healthy"}
 
 
-def test_app_info():
-    response = client.get("/info")
+@pytest.mark.asyncio
+async def test_app_info():
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        response = await ac.get("/info")
     assert response.status_code == 200
     data = response.json()
     assert "app_name" in data
@@ -31,17 +42,18 @@ def test_app_info():
     assert "debug" in data
 
 
-def test_openapi_docs():
+@pytest.mark.asyncio
+async def test_openapi_docs():
     """Test that OpenAPI docs are accessible"""
-    response = client.get("/docs")
-    assert response.status_code == 200
-
-    response = client.get("/openapi.json")
-    assert response.status_code == 200
-
-    # Check that openapi schema includes our users endpoints
-    openapi_data = response.json()
-    paths = openapi_data["paths"]
-    assert "/v1/users/" in paths
-    assert "post" in paths["/v1/users/"]
-    assert "get" in paths["/v1/users/"]
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        response = await ac.get("/docs")
+        assert response.status_code == 200
+        response = await ac.get("/openapi.json")
+        assert response.status_code == 200
+        openapi_data = response.json()
+        paths = openapi_data["paths"]
+        assert "/v1/users/" in paths
+        assert "post" in paths["/v1/users/"]
+        assert "get" in paths["/v1/users/"]
