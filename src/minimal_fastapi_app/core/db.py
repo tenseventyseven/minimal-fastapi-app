@@ -5,13 +5,18 @@ from minimal_fastapi_app.core.config import get_settings
 
 Base = declarative_base()
 
+# Create engine and sessionmaker as singletons for thread safety and reuse
+_engine = create_async_engine(get_settings().database_url, echo=False, future=True)
+_async_session_factory = async_sessionmaker(
+    _engine, expire_on_commit=False, class_=AsyncSession
+)
+
 
 def get_engine():
-    """Create a new SQLAlchemy async engine using the current settings."""
-    return create_async_engine(get_settings().database_url, echo=False, future=True)
+    """Return the singleton SQLAlchemy async engine."""
+    return _engine
 
 
 def get_async_session():
-    """Create a new SQLAlchemy async sessionmaker using the current settings."""
-    engine = get_engine()
-    return async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
+    """Return the singleton SQLAlchemy async sessionmaker."""
+    return _async_session_factory
