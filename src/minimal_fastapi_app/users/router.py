@@ -3,7 +3,7 @@ from pydantic import BaseModel
 
 from minimal_fastapi_app.core.exceptions import BusinessException, enrich_log_fields
 from minimal_fastapi_app.core.logging import get_logger
-from minimal_fastapi_app.users.models import User, UserCreate, UserUpdate
+from minimal_fastapi_app.users.schemas import User, UserCreate, UserUpdate
 from minimal_fastapi_app.users.service import UserService
 
 logger = get_logger(__name__)

@@ -6,7 +6,8 @@ from sqlalchemy.exc import IntegrityError
 from minimal_fastapi_app.core.db import get_async_session
 from minimal_fastapi_app.core.exceptions import BusinessException
 from minimal_fastapi_app.core.logging import get_logger
-from minimal_fastapi_app.users.models import UserCreate, UserInDB, UserORM, UserUpdate
+from minimal_fastapi_app.users.models import UserORM
+from minimal_fastapi_app.users.schemas import UserCreate, UserInDB, UserUpdate
 
 logger = get_logger(__name__)
 

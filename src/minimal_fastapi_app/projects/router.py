@@ -3,9 +3,11 @@ from pydantic import BaseModel
 
 from minimal_fastapi_app.core.exceptions import BusinessException, enrich_log_fields
 from minimal_fastapi_app.core.logging import get_logger
-from minimal_fastapi_app.projects.models import Project, ProjectCreate, ProjectORM
+from minimal_fastapi_app.projects.models import ProjectORM
+from minimal_fastapi_app.projects.schemas import Project, ProjectCreate
 from minimal_fastapi_app.projects.service import ProjectService
-from minimal_fastapi_app.users.models import User, UserORM
+from minimal_fastapi_app.users.models import UserORM
+from minimal_fastapi_app.users.schemas import User
 
 logger = get_logger(__name__)
 
@@ -146,7 +148,9 @@ async def remove_user_from_project(
 
 
 @router.get(
-    "/{project_id}/users", tags=["projects"], description="List users in a project."
+    "/{project_id}/users",
+    tags=["projects"],
+    description="List users in a project.",
 )
 async def list_users_in_project(project_id: int, request: Request):
     logger.info(
@@ -182,6 +186,4 @@ async def list_projects_for_user(user_id: int, request: Request):
                 status_code=404, detail=f"User with id '{user_id}' not found"
             )
         projects = user.projects
-        from minimal_fastapi_app.projects.models import Project
-
         return [Project.model_validate(p) for p in projects]

@@ -1,6 +1,9 @@
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import declarative_base
 
 from minimal_fastapi_app.core.config import get_settings
+
+Base = declarative_base()
 
 
 def get_engine():

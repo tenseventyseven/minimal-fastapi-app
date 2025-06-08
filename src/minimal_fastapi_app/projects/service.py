@@ -6,7 +6,8 @@ from sqlalchemy.exc import IntegrityError
 
 from minimal_fastapi_app.core.db import get_async_session
 from minimal_fastapi_app.core.exceptions import BusinessException
-from minimal_fastapi_app.projects.models import ProjectCreate, ProjectInDB, ProjectORM
+from minimal_fastapi_app.projects.models import ProjectORM
+from minimal_fastapi_app.projects.schemas import ProjectCreate, ProjectInDB
 from minimal_fastapi_app.users.models import UserORM
 
 

@@ -40,7 +40,10 @@ async def lifespan(app: FastAPI):
     # Create database tables
     engine = get_engine()
     async with engine.begin() as conn:
+        from minimal_fastapi_app.projects.models import ProjectBase
+
         await conn.run_sync(UserBase.metadata.create_all)
+        await conn.run_sync(ProjectBase.metadata.create_all)
 
     yield
 
