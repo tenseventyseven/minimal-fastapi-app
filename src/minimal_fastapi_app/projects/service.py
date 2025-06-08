@@ -1,5 +1,6 @@
 # Project service for minimal_fastapi_app
 from datetime import datetime
+
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 

@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import Column, DateTime, Integer, String, Table, ForeignKey
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Table
 from sqlalchemy.orm import relationship
 
 from minimal_fastapi_app.users.models import Base as UserBase

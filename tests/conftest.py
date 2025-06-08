@@ -4,9 +4,9 @@ import os
 import pytest
 
 from minimal_fastapi_app.core.db import get_engine
+from minimal_fastapi_app.projects.models import ProjectORM
 from minimal_fastapi_app.users.models import Base as UserBase
 from minimal_fastapi_app.users.models import UserORM
-from minimal_fastapi_app.projects.models import ProjectORM
 
 # Always set the async driver for SQLite before any app import
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///./app.db"

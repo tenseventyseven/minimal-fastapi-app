@@ -1,4 +1,3 @@
-import pytest
 from fastapi.testclient import TestClient
 
 from minimal_fastapi_app.main import app
