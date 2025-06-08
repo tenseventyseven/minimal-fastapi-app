@@ -28,7 +28,3 @@ class ProjectORM(Base):
         back_populates="projects",
         lazy="selectin",
     )
-
-
-# For Alembic and table creation, expose Base as ProjectBase
-ProjectBase = Base
