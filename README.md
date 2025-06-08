@@ -538,22 +538,22 @@ cp .env.production .env   # For production
 
 #### Available Settings
 
-| Variable           | Default                 | Description                                  |
-| ------------------ | ----------------------- | -------------------------------------------- |
-| `APP_NAME`         | "Minimal FastAPI App"   | Application name                             |
-| `APP_VERSION`      | "0.1.0"                 | Application version                          |
-| `DEBUG`            | false                   | Enable debug mode                            |
-| `ENVIRONMENT`      | development             | Environment (development/staging/production) |
-| `HOST`             | 0.0.0.0                 | Server host                                  |
-| `PORT`             | 8000                    | Server port                                  |
-| `SECRET_KEY`       | (default)               | Secret key for security                      |
-| `ALLOWED_HOSTS`    | ["*"]                   | CORS allowed hosts                           |
-| `DATABASE_URL`     | sqlite:///./app.db      | Database connection URL                      |
-| `LOG_LEVEL`        | INFO                    | Logging level (DEBUG/INFO/WARNING/ERROR)     |
-| `JSON_LOGS`        | false                   | Enable JSON logging format                   |
-| `EXTERNAL_API_KEY` | ""                      | External API key                             |
-| `EXTERNAL_API_URL` | https://api.example.com | External API URL                             |
-| `ENABLE_CORS`      | true                    | Enable CORS middleware                       |
+| Variable           | Default                      | Description                                  |
+| ------------------ | ---------------------------- | -------------------------------------------- |
+| `APP_NAME`         | "Minimal FastAPI App"        | Application name                             |
+| `APP_VERSION`      | "0.1.0"                      | Application version                          |
+| `DEBUG`            | false                        | Enable debug mode                            |
+| `ENVIRONMENT`      | development                  | Environment (development/staging/production) |
+| `HOST`             | 0.0.0.0                      | Server host                                  |
+| `PORT`             | 8000                         | Server port                                  |
+| `SECRET_KEY`       | (default)                    | Secret key for security                      |
+| `ALLOWED_HOSTS`    | ["*"]                        | CORS allowed hosts                           |
+| `DATABASE_URL`     | sqlite+aiosqlite:///./app.db | Database connection URL                      |
+| `LOG_LEVEL`        | INFO                         | Logging level (DEBUG/INFO/WARNING/ERROR)     |
+| `JSON_LOGS`        | false                        | Enable JSON logging format                   |
+| `EXTERNAL_API_KEY` | ""                           | External API key                             |
+| `EXTERNAL_API_URL` | https://api.example.com      | External API URL                             |
+| `ENABLE_CORS`      | true                         | Enable CORS middleware                       |
 
 #### Example Environment Files
 

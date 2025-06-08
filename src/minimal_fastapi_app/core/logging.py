@@ -3,13 +3,14 @@ from typing import Any
 
 import structlog
 
-from minimal_fastapi_app.core.config import settings
+from minimal_fastapi_app.core.config import get_settings
 
 
 def configure_logging() -> None:
     """Configure structured logging for the application"""
 
     # Determine if we should use JSON or console output
+    settings = get_settings()
     use_json = settings.json_logs or settings.environment == "production"
 
     # Configure structlog processors
@@ -46,7 +47,7 @@ def configure_logging() -> None:
     # Configure standard library logging
     logging.basicConfig(
         format="%(message)s",
-        level=getattr(logging, settings.log_level),
+        level=getattr(logging, get_settings().log_level),
         handlers=[logging.StreamHandler()],
     )
 

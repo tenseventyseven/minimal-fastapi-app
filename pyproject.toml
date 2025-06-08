@@ -8,9 +8,11 @@ authors = [
 ]
 requires-python = ">=3.13"
 dependencies = [
+    "aiosqlite>=0.21.0",
     "fastapi[standard]>=0.115.12",
     "pydantic-settings>=2.9.1",
     "pydantic[email]>=2.11.5",
+    "sqlalchemy[asyncio]>=2.0.41",
     "structlog>=25.4.0",
 ]
 

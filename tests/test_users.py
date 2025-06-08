@@ -1,17 +1,8 @@
-import pytest
 from fastapi.testclient import TestClient
 
 from minimal_fastapi_app.main import app
-from minimal_fastapi_app.users.service import user_service
 
 client = TestClient(app, raise_server_exceptions=False)
-
-
-@pytest.fixture(autouse=True)
-def reset_database():
-    """Reset the database before each test"""
-    user_service.users.clear()
-    user_service.user_counter = 1
 
 
 def test_create_user():

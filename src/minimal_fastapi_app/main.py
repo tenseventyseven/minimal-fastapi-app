@@ -6,7 +6,8 @@ from fastapi.exceptions import RequestValidationError as FastAPIRequestValidatio
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from minimal_fastapi_app.core.config import settings
+from minimal_fastapi_app.core.config import get_settings
+from minimal_fastapi_app.core.db import get_engine
 from minimal_fastapi_app.core.exceptions import (
     BusinessException,
     business_exception_handler,
@@ -14,17 +15,19 @@ from minimal_fastapi_app.core.exceptions import (
 from minimal_fastapi_app.core.logging import configure_logging, get_logger
 from minimal_fastapi_app.core.middleware import RequestLoggingMiddleware
 from minimal_fastapi_app.core.models import HealthCheck, StatusResponse
+from minimal_fastapi_app.users.models import Base as UserBase
 from minimal_fastapi_app.users.router import router as users_router
 
 # Configure logging before creating logger
 configure_logging()
 logger = get_logger(__name__)
 
+settings = get_settings()
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan events"""
-    # Startup
     logger.info(
         "Application starting up",
         app_name=settings.app_name,
@@ -32,6 +35,11 @@ async def lifespan(app: FastAPI):
         environment=settings.environment,
         debug=settings.debug,
     )
+
+    # Create database tables
+    engine = get_engine()
+    async with engine.begin() as conn:
+        await conn.run_sync(UserBase.metadata.create_all)
 
     yield
 

@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from minimal_fastapi_app.core.exceptions import BusinessException, enrich_log_fields
 from minimal_fastapi_app.core.logging import get_logger
 from minimal_fastapi_app.users.models import User, UserCreate, UserUpdate
-from minimal_fastapi_app.users.service import user_service
+from minimal_fastapi_app.users.service import UserService
 
 logger = get_logger(__name__)
 
@@ -30,7 +30,7 @@ class PaginatedUsersResponse(BaseModel):
     tags=["users"],
     description="Create a new user.",
 )
-def create_user(user_data: UserCreate, request: Request) -> User:
+async def create_user(user_data: UserCreate, request: Request) -> User:
     """Create a new user and return the created user object.
 
     Args:
@@ -45,9 +45,9 @@ def create_user(user_data: UserCreate, request: Request) -> User:
         "Create user endpoint called",
         **enrich_log_fields({"user_email": user_data.email}, request),
     )
-
+    user_service = UserService()
     try:
-        user = user_service.create_user(user_data)
+        user = await user_service.create_user(user_data)
     except BusinessException as exc:
         # Business logic error (e.g., duplicate email)
         raise exc
@@ -66,7 +66,7 @@ def create_user(user_data: UserCreate, request: Request) -> User:
     tags=["users"],
     description="Get all users with pagination and return a paginated response object.",
 )
-def get_users(
+async def get_users(
     request: Request,
     skip: int = Query(0, ge=0, description="Number of users to skip"),
     limit: int = Query(100, ge=1, le=100, description="Number of users to return"),
@@ -85,9 +85,8 @@ def get_users(
         "Get users endpoint called",
         **enrich_log_fields({"skip": skip, "limit": limit}, request),
     )
-    users = user_service.get_users(skip=skip, limit=limit)
-    total = len(user_service.users)
-    # Convert UserInDB to User for response
+    user_service = UserService()
+    users, total = await user_service.get_users(skip=skip, limit=limit)
     user_responses = [User.model_validate(user) for user in users]
     logger.info(
         "Get users endpoint completed",
@@ -107,7 +106,7 @@ def get_users(
     tags=["users"],
     description="Get a specific user by ID.",
 )
-def get_user(user_id: int, request: Request) -> User:
+async def get_user(user_id: int, request: Request) -> User:
     """Get a specific user by ID.
 
     Args:
@@ -124,8 +123,9 @@ def get_user(user_id: int, request: Request) -> User:
         "Get user endpoint called",
         **enrich_log_fields({"user_id": user_id}, request, user_id=user_id),
     )
+    user_service = UserService()
     try:
-        user = user_service.get_user_by_id(user_id)
+        user = await user_service.get_user_by_id(user_id)
     except BusinessException as exc:
         # Not found error
         raise HTTPException(status_code=404, detail=exc.message)
@@ -142,7 +142,7 @@ def get_user(user_id: int, request: Request) -> User:
     tags=["users"],
     description="Update a user by ID.",
 )
-def update_user(user_id: int, user_data: UserUpdate, request: Request) -> User:
+async def update_user(user_id: int, user_data: UserUpdate, request: Request) -> User:
     """Update a user by ID.
 
     Args:
@@ -160,8 +160,9 @@ def update_user(user_id: int, user_data: UserUpdate, request: Request) -> User:
         "Update user endpoint called",
         **enrich_log_fields({"user_id": user_id}, request, user_id=user_id),
     )
+    user_service = UserService()
     try:
-        user = user_service.update_user(user_id, user_data)
+        user = await user_service.update_user(user_id, user_data)
     except BusinessException as exc:
         if "not found" in exc.message.lower():
             raise HTTPException(status_code=404, detail=exc.message)
@@ -176,7 +177,7 @@ def update_user(user_id: int, user_data: UserUpdate, request: Request) -> User:
 @router.delete(
     "/{user_id}", status_code=204, tags=["users"], description="Delete a user by ID."
 )
-def delete_user(user_id: int, request: Request) -> None:
+async def delete_user(user_id: int, request: Request) -> None:
     """Delete a user by ID.
 
     Args:
@@ -190,8 +191,9 @@ def delete_user(user_id: int, request: Request) -> None:
         "Delete user endpoint called",
         **enrich_log_fields({"user_id": user_id}, request, user_id=user_id),
     )
+    user_service = UserService()
     try:
-        user_service.delete_user(user_id)
+        await user_service.delete_user(user_id)
     except BusinessException as exc:
         # Not found error
         raise HTTPException(status_code=404, detail=exc.message)
