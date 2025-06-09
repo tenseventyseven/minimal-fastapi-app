@@ -18,6 +18,7 @@ def test_settings_from_env(monkeypatch):
     monkeypatch.setenv("DEBUG", "true")
     monkeypatch.setenv("PORT", "9000")
     monkeypatch.setenv("ENVIRONMENT", "production")
+    monkeypatch.setenv("SECRET_KEY", "x" * 32)  # Set a valid secret key for production
 
     settings = Settings()
     assert settings.app_name == "Test App"

@@ -28,7 +28,7 @@ COPY .env.production .env
 RUN uv sync --frozen --no-cache --no-install-project
 
 # Expose port
-EXPOSE 8001
+EXPOSE 8000
 
 # Run with uvicorn via uv
-CMD ["uv", "run", "uvicorn", "minimal_fastapi_app.main:app", "--host", "0.0.0.0", "--port", "8001"]
+CMD ["uv", "run", "uvicorn", "minimal_fastapi_app.main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -1,7 +1,7 @@
 # Project service for minimal_fastapi_app
 from datetime import datetime
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 from minimal_fastapi_app.core.db import get_async_session
@@ -98,12 +98,12 @@ class ProjectService:
             limit=limit,
         )
         async with self.async_session_factory() as session:
-            total_result = await session.execute(select(ProjectORM))
-            total = len(total_result.scalars().all())
+            # Get total count efficiently
+            total = await session.scalar(select(func.count()).select_from(ProjectORM))
             result = await session.execute(select(ProjectORM).offset(skip).limit(limit))
             projects = result.scalars().all()
             logger.info("Projects fetched", count=len(projects))
-            return [ProjectInDB.model_validate(p) for p in projects], total
+            return [ProjectInDB.model_validate(p) for p in projects], int(total or 0)
 
     async def add_user_to_project(self, user_id: int, project_id: int) -> None:
         logger.debug(
@@ -161,3 +161,96 @@ class ProjectService:
                     project_id=project_id,
                 )
                 raise BusinessException(message="User is not in project", details=[])
+
+    async def update_project(
+        self, project_id: int, project_data: ProjectCreate
+    ) -> ProjectInDB:
+        logger.debug(
+            "Attempting to update project",
+            project_id=project_id,
+            project_data=project_data.model_dump(),
+        )
+        async with self.async_session_factory() as session:
+            result = await session.execute(
+                select(ProjectORM).where(ProjectORM.id == project_id)
+            )
+            project = result.scalar_one_or_none()
+            if not project:
+                logger.error(
+                    "Project not found for update",
+                    project_id=project_id,
+                )
+                raise BusinessException(
+                    message=f"Project with id '{project_id}' not found",
+                    details=[],
+                )
+            # Check for duplicate name (excluding self)
+            existing = await session.execute(
+                select(ProjectORM).where(
+                    (ProjectORM.name == project_data.name)
+                    & (ProjectORM.id != project_id)
+                )
+            )
+            if existing.scalar_one_or_none():
+                logger.warning(
+                    "Failed to update project due to duplicate name",
+                    name=project_data.name,
+                )
+                raise BusinessException(
+                    message="A project with this name already exists",
+                    details=[
+                        {
+                            "field": "name",
+                            "message": "Project name is already in use",
+                            "code": "name_exists",
+                        }
+                    ],
+                )
+            # Assign to ORM instance attributes using object.__setattr__
+            # to avoid type checker error
+            object.__setattr__(project, "name", project_data.name)
+            object.__setattr__(project, "description", project_data.description)
+            try:
+                await session.commit()
+                await session.refresh(project)
+                logger.info(
+                    "Project updated successfully",
+                    project_id=project.id,
+                )
+            except IntegrityError:
+                await session.rollback()
+                logger.warning(
+                    "Failed to update project due to duplicate name",
+                    name=project_data.name,
+                )
+                raise BusinessException(
+                    message="A project with this name already exists",
+                    details=[
+                        {
+                            "field": "name",
+                            "message": "Project name is already in use",
+                            "code": "name_exists",
+                        }
+                    ],
+                )
+            return ProjectInDB.model_validate(project)
+
+    async def delete_project(self, project_id: int) -> None:
+        logger.debug("Attempting to delete project", project_id=project_id)
+        async with self.async_session_factory() as session:
+            result = await session.execute(
+                select(ProjectORM).where(ProjectORM.id == project_id)
+            )
+            project = result.scalar_one_or_none()
+            if not project:
+                logger.error(
+                    "Project not found for deletion",
+                    project_id=project_id,
+                )
+                raise BusinessException(
+                    message=f"Project with id '{project_id}' not found",
+                    details=[],
+                )
+            await session.delete(project)
+            await session.commit()
+            logger.info("Project deleted successfully", project_id=project_id)

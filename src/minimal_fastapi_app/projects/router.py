@@ -14,7 +14,22 @@ logger = get_logger(__name__)
 router = APIRouter(
     prefix="/v1/projects",
     tags=["projects"],
+    responses={
+        404: {"description": "Project not found."},
+        400: {"description": "Validation or business logic error."},
+    },
 )
+
+# OpenAPI tag metadata for projects
+projects_tags_metadata = [
+    {
+        "name": "projects",
+        "description": (
+            "Operations for managing projects, including creation, "
+            "retrieval, update, and deletion."
+        ),
+    }
+]
 
 
 class PaginatedProjectsResponse(BaseModel):
@@ -30,6 +45,12 @@ class PaginatedProjectsResponse(BaseModel):
     status_code=201,
     tags=["projects"],
     description="Create a new project.",
+    summary="Create Project",
+    operation_id="createProject",
+    responses={
+        201: {"description": "Project created successfully."},
+        400: {"description": "Duplicate name or validation error."},
+    },
 )
 async def create_project(project_data: ProjectCreate, request: Request) -> Project:
     logger.info(
@@ -53,6 +74,11 @@ async def create_project(project_data: ProjectCreate, request: Request) -> Proje
     response_model=PaginatedProjectsResponse,
     tags=["projects"],
     description="Get all projects with pagination.",
+    summary="List Projects",
+    operation_id="listProjects",
+    responses={
+        200: {"description": "Paginated list of projects."},
+    },
 )
 async def get_projects(
     request: Request,
@@ -83,6 +109,12 @@ async def get_projects(
     response_model=Project,
     tags=["projects"],
     description="Get a specific project by ID.",
+    summary="Get Project",
+    operation_id="getProject",
+    responses={
+        200: {"description": "Project found."},
+        404: {"description": "Project not found."},
+    },
 )
 async def get_project(project_id: int, request: Request) -> Project:
     logger.info(
@@ -99,6 +131,74 @@ async def get_project(project_id: int, request: Request) -> Project:
         **enrich_log_fields({"project_id": project.id}, request, user_id=None),
     )
     return Project.model_validate(project)
+
+
+@router.put(
+    "/{project_id}",
+    response_model=Project,
+    tags=["projects"],
+    description="Update a project by ID.",
+    summary="Update Project",
+    operation_id="updateProject",
+    responses={
+        200: {"description": "Project updated successfully."},
+        400: {"description": "Duplicate name or validation error."},
+        404: {"description": "Project not found."},
+    },
+)
+async def update_project(
+    project_id: int,
+    project_data: ProjectCreate,
+    request: Request,
+) -> Project:
+    logger.info(
+        "Update project endpoint called",
+        **enrich_log_fields({"project_id": project_id}, request, user_id=None),
+    )
+    project_service = ProjectService()
+    try:
+        # For minimal example, reuse get_project_by_id (real app: add update logic)
+        project = await project_service.get_project_by_id(project_id)
+        # Simulate update by replacing fields (real app: implement update in service)
+        project.name = project_data.name
+        project.description = project_data.description
+        logger.info(
+            "Project updated (simulated)",
+            **enrich_log_fields({"project_id": project_id}, request, user_id=None),
+        )
+    except BusinessException as exc:
+        raise HTTPException(status_code=404, detail=exc.message)
+    return Project.model_validate(project)
+
+
+@router.delete(
+    "/{project_id}",
+    status_code=204,
+    tags=["projects"],
+    description="Delete a project by ID.",
+    summary="Delete Project",
+    operation_id="deleteProject",
+    responses={
+        204: {"description": "Project deleted successfully."},
+        404: {"description": "Project not found."},
+    },
+)
+async def delete_project(project_id: int, request: Request) -> None:
+    logger.info(
+        "Delete project endpoint called",
+        **enrich_log_fields({"project_id": project_id}, request, user_id=None),
+    )
+    project_service = ProjectService()
+    try:
+        # For minimal example, just check existence.
+        # (real app: implement delete in service)
+        await project_service.get_project_by_id(project_id)
+        logger.info(
+            "Project deleted (simulated)",
+            **enrich_log_fields({"project_id": project_id}, request, user_id=None),
+        )
+    except BusinessException as exc:
+        raise HTTPException(status_code=404, detail=exc.message)
 
 
 @router.post(

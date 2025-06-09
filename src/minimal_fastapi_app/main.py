@@ -18,9 +18,16 @@ from minimal_fastapi_app.core.exceptions import (
 from minimal_fastapi_app.core.logging import configure_logging, get_logger
 from minimal_fastapi_app.core.middleware import RequestLoggingMiddleware
 from minimal_fastapi_app.core.models import HealthCheck, StatusResponse
-from minimal_fastapi_app.projects.router import router as projects_router
+from minimal_fastapi_app.projects.router import (
+    router as projects_router,
+    projects_tags_metadata,
+)
+from minimal_fastapi_app.users.router import (
+    router as users_router,
+    users_tags_metadata,
+)
+from minimal_fastapi_app.projects.models import Base as ProjectBase
 from minimal_fastapi_app.users.models import Base as UserBase
-from minimal_fastapi_app.users.router import router as users_router
 
 # Configure logging before creating logger
 configure_logging()
@@ -46,8 +53,6 @@ async def lifespan(app: FastAPI):
     # Create database tables
     engine = get_engine()
     async with engine.begin() as conn:
-        from minimal_fastapi_app.projects.models import Base as ProjectBase
-
         await conn.run_sync(UserBase.metadata.create_all)
         await conn.run_sync(ProjectBase.metadata.create_all)
 
@@ -63,13 +68,14 @@ app = FastAPI(
     description="A minimal FastAPI application following best practices structure",
     debug=settings.debug,
     lifespan=lifespan,
+    openapi_tags=users_tags_metadata + projects_tags_metadata,
 )
 app.add_middleware(RequestLoggingMiddleware)
 
 # Instrument FastAPI for OpenTelemetry (for span/trace IDs in logs)
 FastAPIInstrumentor().instrument_app(app)
 
-# Add CORS middleware if enabled
+# Add CORS middleware if enabled (and not already present)
 if settings.enable_cors:
     app.add_middleware(
         CORSMiddleware,
@@ -111,8 +117,8 @@ def validation_exception_handler(request: Request, exc: FastAPIRequestValidation
 
 
 # Include routers with proper prefix
-app.include_router(users_router, tags=["users"])
-app.include_router(projects_router, tags=["projects"])
+app.include_router(users_router)
+app.include_router(projects_router)
 
 
 @app.get("/", response_model=StatusResponse)

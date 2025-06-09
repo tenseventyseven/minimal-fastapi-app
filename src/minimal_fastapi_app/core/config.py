@@ -87,6 +87,18 @@ class Settings(BaseSettings):
             return [str(item) for item in v]
         return [str(v)] if v else []
 
+    @field_validator("secret_key")
+    @classmethod
+    def validate_secret_key(cls, v, info):
+        import os
+
+        env = os.getenv("ENVIRONMENT", info.data.get("environment", "development"))
+        if env == "production" and v == "your-secret-key-change-this-in-production":
+            raise ValueError("SECRET_KEY must be set to a secure value in production.")
+        if env == "production" and (not v or len(v) < 32):
+            raise ValueError("SECRET_KEY must be at least 32 characters in production.")
+        return v
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

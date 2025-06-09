@@ -47,7 +47,7 @@ async def test_create_duplicate_email():
 
         error_data = response.json()
         assert error_data["error"] == "business_error"
-        assert "correlation_id" in error_data
+        assert "trace_id" in error_data
         assert "email" in str(error_data["details"]).lower()
 
 
@@ -299,14 +299,31 @@ async def test_delete_user():
 
 @pytest.mark.asyncio
 async def test_delete_nonexistent_user():
-    """Should return 404 when deleting a non-existent user."""
+    """Should return 404 when trying to delete a non-existent user."""
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as ac:
-        response = await ac.delete("/v1/users/999")
+        response = await ac.delete("/v1/users/9999")
         assert response.status_code == 404
         error_data = response.json()
         assert "detail" in error_data
+        assert "not found" in error_data["detail"].lower()
+
+
+def test_create_user_validation_error():
+    """Should return 422 for invalid user creation data (missing name and email)."""
+    import asyncio
+
+    async def inner():
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as ac:
+            response = await ac.post("/v1/users/", json={"age": 42})
+            assert response.status_code == 422
+            error_data = response.json()
+            assert "detail" in error_data
+
+    asyncio.run(inner())
 
 
 @pytest.mark.asyncio

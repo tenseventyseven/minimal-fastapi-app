@@ -24,6 +24,21 @@ class UserService:
             user_data=user_data.model_dump(),
         )
         async with self.async_session_factory() as session:
+            # Check for duplicate email
+            existing = await session.execute(
+                select(UserORM).where(UserORM.email == str(user_data.email))
+            )
+            if existing.scalar_one_or_none():
+                raise BusinessException(
+                    message="A user with this email already exists",
+                    details=[
+                        {
+                            "field": "email",
+                            "message": "Email address is already in use",
+                            "code": "email_exists",
+                        }
+                    ],
+                )
             user = UserORM(
                 name=user_data.name,
                 email=str(user_data.email),
@@ -82,14 +97,11 @@ class UserService:
             limit=limit,
         )
         async with self.async_session_factory() as session:
-            total_result = await session.execute(
-                select(func.count()).select_from(UserORM)
-            )
-            total = total_result.scalar_one()
+            total = await session.scalar(select(func.count()).select_from(UserORM))
             result = await session.execute(select(UserORM).offset(skip).limit(limit))
             users = result.scalars().all()
             logger.info("Users fetched", count=len(users))
-            return [UserInDB.model_validate(u) for u in users], total
+            return [UserInDB.model_validate(u) for u in users], int(total or 0)
 
     async def update_user(self, user_id: int, user_data: UserUpdate) -> UserInDB:
         logger.debug(
@@ -110,8 +122,31 @@ class UserService:
                     details=[],
                 )
             update_data = user_data.model_dump(exclude_unset=True)
+            # Check for duplicate email (excluding self)
+            if "email" in update_data:
+                existing = await session.execute(
+                    select(UserORM).where(
+                        (UserORM.email == update_data["email"])
+                        & (UserORM.id != user_id)
+                    )
+                )
+                if existing.scalar_one_or_none():
+                    logger.warning(
+                        "Failed to update user due to duplicate email",
+                        email=update_data["email"],
+                    )
+                    raise BusinessException(
+                        message="A user with this email already exists",
+                        details=[
+                            {
+                                "field": "email",
+                                "message": "Email address is already in use",
+                                "code": "email_exists",
+                            }
+                        ],
+                    )
             for field, value in update_data.items():
-                setattr(user, field, value)
+                object.__setattr__(user, field, value)
             try:
                 await session.commit()
                 await session.refresh(user)

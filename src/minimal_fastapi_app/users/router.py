@@ -11,7 +11,23 @@ logger = get_logger(__name__)
 router = APIRouter(
     prefix="/v1/users",
     tags=["users"],
+    responses={
+        404: {"description": "User not found."},
+        400: {"description": "Validation or business logic error."},
+    },
 )
+
+# OpenAPI tag metadata for users
+users_tags_metadata = [
+    {
+        "name": "users",
+        # Description split for line length
+        "description": (
+            "Operations for managing users, including creation, "
+            "retrieval, update, and deletion."
+        ),
+    }
+]
 
 
 class PaginatedUsersResponse(BaseModel):
@@ -29,6 +45,12 @@ class PaginatedUsersResponse(BaseModel):
     status_code=201,
     tags=["users"],
     description="Create a new user.",
+    summary="Create User",
+    operation_id="createUser",
+    responses={
+        201: {"description": "User created successfully."},
+        400: {"description": "Duplicate email or validation error."},
+    },
 )
 async def create_user(user_data: UserCreate, request: Request) -> User:
     """Create a new user and return the created user object.
@@ -64,7 +86,12 @@ async def create_user(user_data: UserCreate, request: Request) -> User:
     "/",
     response_model=PaginatedUsersResponse,
     tags=["users"],
-    description="Get all users with pagination and return a paginated response object.",
+    description="Get all users with pagination.",
+    summary="List Users",
+    operation_id="listUsers",
+    responses={
+        200: {"description": "Paginated list of users."},
+    },
 )
 async def get_users(
     request: Request,
@@ -105,6 +132,12 @@ async def get_users(
     response_model=User,
     tags=["users"],
     description="Get a specific user by ID.",
+    summary="Get User",
+    operation_id="getUser",
+    responses={
+        200: {"description": "User found."},
+        404: {"description": "User not found."},
+    },
 )
 async def get_user(user_id: int, request: Request) -> User:
     """Get a specific user by ID.
@@ -141,6 +174,13 @@ async def get_user(user_id: int, request: Request) -> User:
     response_model=User,
     tags=["users"],
     description="Update a user by ID.",
+    summary="Update User",
+    operation_id="updateUser",
+    responses={
+        200: {"description": "User updated successfully."},
+        400: {"description": "Duplicate email or validation error."},
+        404: {"description": "User not found."},
+    },
 )
 async def update_user(user_id: int, user_data: UserUpdate, request: Request) -> User:
     """Update a user by ID.
@@ -175,7 +215,16 @@ async def update_user(user_id: int, user_data: UserUpdate, request: Request) -> 
 
 
 @router.delete(
-    "/{user_id}", status_code=204, tags=["users"], description="Delete a user by ID."
+    "/{user_id}",
+    status_code=204,
+    tags=["users"],
+    description="Delete a user by ID.",
+    summary="Delete User",
+    operation_id="deleteUser",
+    responses={
+        204: {"description": "User deleted successfully."},
+        404: {"description": "User not found."},
+    },
 )
 async def delete_user(user_id: int, request: Request) -> None:
     """Delete a user by ID.

@@ -1,4 +1,3 @@
-import os
 import logging
 from typing import Any
 
@@ -23,6 +22,7 @@ logging.getLogger("fastapi").setLevel(logging.WARNING)
 def configure_logging() -> None:
     """
     Configure structlog for JSON logging and OpenTelemetry context extraction only.
+    Sets up log level, format, and OpenTelemetry trace/span ID enrichment.
     """
     settings = get_settings()
     use_json = settings.json_logs or settings.environment == "production"
@@ -59,7 +59,10 @@ def configure_logging() -> None:
 
 
 def add_otel_trace_ids(logger, method_name, event_dict):
-    """Add OpenTelemetry trace_id and span_id to structlog event dict."""
+    """
+    Add OpenTelemetry trace_id and span_id to structlog event dict.
+    If no active span, sets them to None.
+    """
     span = trace.get_current_span()
     ctx = span.get_span_context() if span else None
     if ctx and ctx.is_valid:

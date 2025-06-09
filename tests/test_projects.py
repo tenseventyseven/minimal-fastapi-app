@@ -33,7 +33,7 @@ async def test_create_duplicate_project():
         assert response.status_code == 400
         error_data = response.json()
         assert error_data["error"] == "business_error"
-        assert "correlation_id" in error_data
+        assert "trace_id" in error_data
         assert "name" in str(error_data["details"]).lower()
 
 
@@ -94,3 +94,32 @@ async def test_get_nonexistent_project():
         assert response.status_code == 404
         error_data = response.json()
         assert "detail" in error_data
+
+
+@pytest.mark.asyncio
+async def test_delete_nonexistent_project():
+    """Should return 404 when trying to delete a non-existent project."""
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        response = await ac.delete("/v1/projects/9999")
+        assert response.status_code == 404
+        error_data = response.json()
+        assert "detail" in error_data
+        assert "not found" in error_data["detail"].lower()
+
+
+def test_create_project_validation_error():
+    """Should return 422 for invalid project creation data (missing name)."""
+    import asyncio
+
+    async def inner():
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as ac:
+            response = await ac.post("/v1/projects/", json={"description": "No name"})
+            assert response.status_code == 422
+            error_data = response.json()
+            assert "detail" in error_data
+
+    asyncio.run(inner())
