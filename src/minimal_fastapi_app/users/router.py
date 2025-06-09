@@ -17,18 +17,6 @@ router = APIRouter(
     },
 )
 
-# OpenAPI tag metadata for users
-users_tags_metadata = [
-    {
-        "name": "users",
-        # Description split for line length
-        "description": (
-            "Operations for managing users, including creation, "
-            "retrieval, update, and deletion."
-        ),
-    }
-]
-
 
 class PaginatedUsersResponse(BaseModel):
     """Paginated response model for users list API."""

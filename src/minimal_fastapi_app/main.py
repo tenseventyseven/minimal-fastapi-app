@@ -20,17 +20,11 @@ from minimal_fastapi_app.core.middleware import RequestLoggingMiddleware
 from minimal_fastapi_app.core.models import HealthCheck, StatusResponse
 from minimal_fastapi_app.projects.models import Base as ProjectBase
 from minimal_fastapi_app.projects.router import (
-    projects_tags_metadata,
-)
-from minimal_fastapi_app.projects.router import (
     router as projects_router,
 )
 from minimal_fastapi_app.users.models import Base as UserBase
 from minimal_fastapi_app.users.router import (
     router as users_router,
-)
-from minimal_fastapi_app.users.router import (
-    users_tags_metadata,
 )
 
 # Configure logging before creating logger
@@ -74,7 +68,6 @@ app = FastAPI(
     description="A minimal FastAPI application following best practices structure",
     debug=settings.debug,
     lifespan=lifespan,
-    openapi_tags=users_tags_metadata + projects_tags_metadata,
 )
 # Register request logging middleware for trace/log correlation
 app.add_middleware(RequestLoggingMiddleware)

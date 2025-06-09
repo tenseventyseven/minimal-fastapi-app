@@ -20,17 +20,6 @@ router = APIRouter(
     },
 )
 
-# OpenAPI tag metadata for projects
-projects_tags_metadata = [
-    {
-        "name": "projects",
-        "description": (
-            "Operations for managing projects, including creation, "
-            "retrieval, update, and deletion."
-        ),
-    }
-]
-
 
 class PaginatedProjectsResponse(BaseModel):
     items: list[Project]

@@ -109,17 +109,13 @@ async def test_delete_nonexistent_project():
         assert "not found" in error_data["detail"].lower()
 
 
-def test_create_project_validation_error():
+@pytest.mark.asyncio
+async def test_create_project_validation_error():
     """Should return 422 for invalid project creation data (missing name)."""
-    import asyncio
-
-    async def inner():
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as ac:
-            response = await ac.post("/v1/projects/", json={"description": "No name"})
-            assert response.status_code == 422
-            error_data = response.json()
-            assert "detail" in error_data
-
-    asyncio.run(inner())
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        response = await ac.post("/v1/projects/", json={"description": "No name"})
+        assert response.status_code == 422
+        error_data = response.json()
+        assert "detail" in error_data

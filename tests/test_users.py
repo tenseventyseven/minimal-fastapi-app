@@ -310,20 +310,16 @@ async def test_delete_nonexistent_user():
         assert "not found" in error_data["detail"].lower()
 
 
-def test_create_user_validation_error():
+@pytest.mark.asyncio
+async def test_create_user_validation_error():
     """Should return 422 for invalid user creation data (missing name and email)."""
-    import asyncio
-
-    async def inner():
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as ac:
-            response = await ac.post("/v1/users/", json={"age": 42})
-            assert response.status_code == 422
-            error_data = response.json()
-            assert "detail" in error_data
-
-    asyncio.run(inner())
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        response = await ac.post("/v1/users/", json={"age": 42})
+        assert response.status_code == 422
+        error_data = response.json()
+        assert "detail" in error_data
 
 
 @pytest.mark.asyncio
