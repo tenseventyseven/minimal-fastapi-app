@@ -20,7 +20,6 @@ async def test_create_project():
         assert data["description"] == "A test project"
         assert data["id"] == 1
         assert "created_at" in data
-        assert "X-Correlation-ID" in response.headers
 
 
 @pytest.mark.asyncio
@@ -36,7 +35,6 @@ async def test_create_duplicate_project():
         assert error_data["error"] == "business_error"
         assert "correlation_id" in error_data
         assert "name" in str(error_data["details"]).lower()
-        assert "X-Correlation-ID" in response.headers
 
 
 @pytest.mark.asyncio
@@ -48,7 +46,6 @@ async def test_get_projects_empty():
         assert response.status_code == 200
         assert response.json()["items"] == []
         assert response.json()["total"] == 0
-        assert "X-Correlation-ID" in response.headers
 
 
 @pytest.mark.asyncio

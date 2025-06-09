@@ -1,48 +1,59 @@
 # Virtual environments
+
 .venv/
 venv/
 env/
 
 # Environment files (copy specific ones as needed)
+
 .env
 .env.local
 .env.development
 .env.staging
-.env.production
+
+# .env.production # <--- allow .env.production for Docker builds
 
 # Python cache
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
+
+**pycache**/
+_.pyc
+_.pyo
+\*.pyd
 .Python
 
 # Build artifacts
+
 build/
 dist/
-*.egg-info/
+\*.egg-info/
 
 # IDE
+
 .vscode/
 .idea/
-*.swp
-*.swo
+_.swp
+_.swo
 
 # OS
+
 .DS_Store
 Thumbs.db
 
 # Git
+
 .git/
 .gitignore
 
 # Testing
+
 .pytest_cache/
 .coverage
 htmlcov/
 
 # Documentation
-docs/_build/
+
+docs/\_build/
 
 # Logs
-*.log
+
+\*.log

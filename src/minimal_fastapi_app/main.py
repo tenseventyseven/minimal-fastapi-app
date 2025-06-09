@@ -5,6 +5,9 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError as FastAPIRequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from opentelemetry import trace
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from opentelemetry.sdk.trace import TracerProvider
 
 from minimal_fastapi_app.core.config import get_settings
 from minimal_fastapi_app.core.db import get_engine
@@ -25,6 +28,9 @@ logger = get_logger(__name__)
 
 settings = get_settings()
 
+# Minimal tracing setup for context propagation (no exporters needed)
+trace.set_tracer_provider(TracerProvider())
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -40,7 +46,7 @@ async def lifespan(app: FastAPI):
     # Create database tables
     engine = get_engine()
     async with engine.begin() as conn:
-        from minimal_fastapi_app.projects.models import ProjectBase
+        from minimal_fastapi_app.projects.models import Base as ProjectBase
 
         await conn.run_sync(UserBase.metadata.create_all)
         await conn.run_sync(ProjectBase.metadata.create_all)
@@ -58,9 +64,10 @@ app = FastAPI(
     debug=settings.debug,
     lifespan=lifespan,
 )
-
-# Add middleware (order matters - first added = outermost)
 app.add_middleware(RequestLoggingMiddleware)
+
+# Instrument FastAPI for OpenTelemetry (for span/trace IDs in logs)
+FastAPIInstrumentor().instrument_app(app)
 
 # Add CORS middleware if enabled
 if settings.enable_cors:
@@ -80,14 +87,12 @@ app.add_exception_handler(BusinessException, business_exception_handler)  # type
 # Global exception handler for HTTPException
 @app.exception_handler(HTTPException)
 def http_exception_handler(request: Request, exc: HTTPException):
-    correlation_id = getattr(request.state, "correlation_id", None)
     return JSONResponse(
         status_code=exc.status_code,
         content={
             "error": exc.status_code,
             "detail": exc.detail,
             "details": [],  # Always include details, empty for HTTPException
-            "correlation_id": correlation_id,
         },
     )
 
@@ -95,15 +100,12 @@ def http_exception_handler(request: Request, exc: HTTPException):
 # Global exception handler for RequestValidationError
 @app.exception_handler(FastAPIRequestValidationError)
 def validation_exception_handler(request: Request, exc: FastAPIRequestValidationError):
-    correlation_id = getattr(request.state, "correlation_id", None)
     return JSONResponse(
         status_code=422,
         content={
             "error": "validation_error",
             "detail": "Validation failed",
             "details": exc.errors(),
-            # Always include details, use errors for validation
-            "correlation_id": correlation_id,
         },
     )
 
@@ -116,10 +118,7 @@ app.include_router(projects_router, tags=["projects"])
 @app.get("/", response_model=StatusResponse)
 def read_root(request: Request):
     """Root endpoint with application status"""
-    correlation_id = getattr(request.state, "correlation_id", None)
-
-    logger.info("Root endpoint accessed", correlation_id=correlation_id)
-
+    logger.info("Root endpoint accessed")
     return StatusResponse(
         message="Hello World",
         status="running",
@@ -131,20 +130,14 @@ def read_root(request: Request):
 @app.get("/health", response_model=HealthCheck)
 def health_check(request: Request):
     """Health check endpoint"""
-    correlation_id = getattr(request.state, "correlation_id", None)
-
-    logger.debug("Health check endpoint accessed", correlation_id=correlation_id)
-
+    logger.debug("Health check endpoint accessed")
     return HealthCheck(status="healthy")
 
 
 @app.get("/info")
 def app_info(request: Request):
     """Application information endpoint"""
-    correlation_id = getattr(request.state, "correlation_id", None)
-
-    logger.info("App info endpoint accessed", correlation_id=correlation_id)
-
+    logger.info("App info endpoint accessed")
     return {
         "app_name": settings.app_name,
         "version": settings.app_version,

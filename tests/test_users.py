@@ -25,9 +25,6 @@ async def test_create_user():
         assert data["id"] == 1
         assert "created_at" in data
 
-        # Check that correlation ID is in response headers
-        assert "X-Correlation-ID" in response.headers
-
 
 @pytest.mark.asyncio
 async def test_create_duplicate_email():
@@ -52,7 +49,6 @@ async def test_create_duplicate_email():
         assert error_data["error"] == "business_error"
         assert "correlation_id" in error_data
         assert "email" in str(error_data["details"]).lower()
-        assert "X-Correlation-ID" in response.headers
 
 
 @pytest.mark.asyncio
@@ -133,7 +129,6 @@ async def test_get_users_empty():
             "limit": 100,
             "skip": 0,
         }
-        assert "X-Correlation-ID" in response.headers
 
 
 @pytest.mark.asyncio
@@ -294,7 +289,6 @@ async def test_delete_user():
         # Delete user
         response = await ac.delete(f"/v1/users/{user_id}")
         assert response.status_code == 204
-        assert "X-Correlation-ID" in response.headers
 
         # Verify user is deleted
         response = await ac.get(f"/v1/users/{user_id}")

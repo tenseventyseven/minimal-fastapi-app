@@ -1,57 +1,76 @@
+import os
 import logging
 from typing import Any
 
 import structlog
+from opentelemetry import trace
 
 from minimal_fastapi_app.core.config import get_settings
 
 
-def configure_logging() -> None:
-    """Configure structured logging for the application"""
+# Silence all SQLAlchemy logs unless WARNING or above
+logging.getLogger("sqlalchemy").setLevel(logging.WARNING)
+# Silence aiosqlite and sqlite3 logs unless WARNING or above
+logging.getLogger("aiosqlite").setLevel(logging.WARNING)
+logging.getLogger("sqlite3").setLevel(logging.WARNING)
+# Silence Uvicorn and FastAPI logs unless WARNING or above
+logging.getLogger("uvicorn").setLevel(logging.WARNING)
+logging.getLogger("uvicorn.error").setLevel(logging.WARNING)
+logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+logging.getLogger("fastapi").setLevel(logging.WARNING)
 
-    # Determine if we should use JSON or console output
+
+def configure_logging() -> None:
+    """
+    Configure structlog for JSON logging and OpenTelemetry context extraction only.
+    """
     settings = get_settings()
     use_json = settings.json_logs or settings.environment == "production"
 
-    # Configure structlog processors
+    # Set up structlog processors
     processors = [
-        structlog.stdlib.filter_by_level,
-        structlog.stdlib.add_logger_name,
-        structlog.stdlib.add_log_level,
-        structlog.stdlib.PositionalArgumentsFormatter(),
+        structlog.contextvars.merge_contextvars,
         structlog.processors.TimeStamper(fmt="iso"),
+        structlog.processors.add_log_level,
         structlog.processors.StackInfoRenderer(),
         structlog.processors.format_exc_info,
         structlog.processors.UnicodeDecoder(),
+        # Add OpenTelemetry trace/span IDs to logs
+        add_otel_trace_ids,
     ]
-
-    # Add JSON or console renderer based on environment
     if use_json:
         processors.append(structlog.processors.JSONRenderer())
     else:
-        processors.append(
-            structlog.dev.ConsoleRenderer(
-                colors=True, exception_formatter=structlog.dev.plain_traceback
-            )
-        )
+        processors.append(structlog.dev.ConsoleRenderer())
 
-    # Configure structlog
     structlog.configure(
         processors=processors,
-        context_class=dict,
         logger_factory=structlog.stdlib.LoggerFactory(),
         wrapper_class=structlog.stdlib.BoundLogger,
         cache_logger_on_first_use=True,
     )
 
-    # Configure standard library logging
+    # Set up stdlib logging to go through structlog
     logging.basicConfig(
         format="%(message)s",
-        level=getattr(logging, get_settings().log_level),
-        handlers=[logging.StreamHandler()],
+        stream=None,
+        level=getattr(logging, settings.log_level),
     )
 
 
+def add_otel_trace_ids(logger, method_name, event_dict):
+    """Add OpenTelemetry trace_id and span_id to structlog event dict."""
+    span = trace.get_current_span()
+    ctx = span.get_span_context() if span else None
+    if ctx and ctx.is_valid:
+        event_dict["trace_id"] = format(ctx.trace_id, "032x")
+        event_dict["span_id"] = format(ctx.span_id, "016x")
+    else:
+        event_dict["trace_id"] = None
+        event_dict["span_id"] = None
+    return event_dict
+
+
 def get_logger(name: str) -> Any:
-    """Get a structured logger instance"""
+    """Get a structlog logger instance."""
     return structlog.get_logger(name)

@@ -8,13 +8,13 @@ A production-grade, minimal FastAPI application using modern Python tooling, cle
 - **Pydantic** for data validation and settings
 - **pydantic-settings** for environment-based config
 - **SQLAlchemy (async)** for database access
-- **structlog** for structured logging
 - **uv** for dependency management and scripts
 - **Hatchling** for builds
 - **Docker/Podman** for containers
 - **nginx** as a production reverse proxy
 - **pytest** for testing
 - **ruff** for linting/formatting
+- **OpenTelemetry logging** for structured, traceable logs (JSON in production, colored in dev)
 
 ## Project Structure
 
@@ -29,7 +29,7 @@ minimal-fastapi-app/
 │       │   ├── config.py        # Settings/config
 │       │   ├── db.py            # SQLAlchemy base/session
 │       │   ├── exceptions.py    # Custom error types/handlers
-│       │   ├── logging.py       # structlog setup
+│       │   ├── logging.py       # OpenTelemetry setup
 │       │   └── middleware.py    # Request logging, correlation IDs
 │       ├── users/
 │       │   ├── __init__.py
@@ -117,7 +117,7 @@ Projects endpoints follow a similar pattern under `/v1/projects/`.
 ## Observability & Error Handling
 
 - **Structured Logging:**
-  - `structlog` with JSON logs in production, colored logs in dev
+  - OpenTelemetry with JSON logs in production, colored logs in dev
   - Correlation IDs on every request (in logs and error responses)
 - **Error Handling:**
   - Consistent JSON error format for validation, business, and HTTP errors
