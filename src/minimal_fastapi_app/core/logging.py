@@ -6,7 +6,6 @@ from opentelemetry import trace
 
 from minimal_fastapi_app.core.config import get_settings
 
-
 # Silence all SQLAlchemy logs unless WARNING or above
 logging.getLogger("sqlalchemy").setLevel(logging.WARNING)
 # Silence aiosqlite and sqlite3 logs unless WARNING or above

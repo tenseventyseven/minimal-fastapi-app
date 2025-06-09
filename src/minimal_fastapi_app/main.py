@@ -18,16 +18,20 @@ from minimal_fastapi_app.core.exceptions import (
 from minimal_fastapi_app.core.logging import configure_logging, get_logger
 from minimal_fastapi_app.core.middleware import RequestLoggingMiddleware
 from minimal_fastapi_app.core.models import HealthCheck, StatusResponse
+from minimal_fastapi_app.projects.models import Base as ProjectBase
 from minimal_fastapi_app.projects.router import (
-    router as projects_router,
     projects_tags_metadata,
 )
+from minimal_fastapi_app.projects.router import (
+    router as projects_router,
+)
+from minimal_fastapi_app.users.models import Base as UserBase
 from minimal_fastapi_app.users.router import (
     router as users_router,
+)
+from minimal_fastapi_app.users.router import (
     users_tags_metadata,
 )
-from minimal_fastapi_app.projects.models import Base as ProjectBase
-from minimal_fastapi_app.users.models import Base as UserBase
 
 # Configure logging before creating logger
 configure_logging()
