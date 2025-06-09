@@ -15,16 +15,24 @@ logger = get_logger(__name__)
 
 
 class ProjectService:
+    """Service layer for project operations using SQLAlchemy async ORM."""
+
     def __init__(self):
+        # Factory for creating async DB sessions
         self.async_session_factory = get_async_session()
 
     async def create_project(self, project_data: ProjectCreate) -> ProjectInDB:
+        """
+        Create a new project in the database.
+        Checks for duplicate project name before creation.
+        Raises BusinessException if name already exists.
+        """
         logger.debug(
             "Attempting to create project",
             project_data=project_data.model_dump(),
         )
         async with self.async_session_factory() as session:
-            # Check for duplicate name
+            # Check for duplicate name to enforce uniqueness constraint
             existing = await session.execute(
                 select(ProjectORM).where(ProjectORM.name == project_data.name)
             )
@@ -53,6 +61,7 @@ class ProjectService:
                     project_id=project.id,
                 )
             except IntegrityError:
+                # Rollback in case of DB constraint violation (e.g., duplicate name)
                 await session.rollback()
                 logger.warning(
                     "Failed to create project due to duplicate name",
@@ -71,6 +80,10 @@ class ProjectService:
             return ProjectInDB.model_validate(project)
 
     async def get_project_by_id(self, project_id: int) -> ProjectInDB:
+        """
+        Retrieve a project by its unique ID.
+        Raises BusinessException if project is not found.
+        """
         logger.debug("Fetching project by ID", project_id=project_id)
         async with self.async_session_factory() as session:
             result = await session.execute(
@@ -92,6 +105,10 @@ class ProjectService:
     async def get_projects(
         self, skip: int = 0, limit: int = 100
     ) -> tuple[list[ProjectInDB], int]:
+        """
+        Retrieve a paginated list of projects and the total count.
+        Useful for API pagination endpoints.
+        """
         logger.debug(
             "Fetching projects with pagination",
             skip=skip,
@@ -106,6 +123,10 @@ class ProjectService:
             return [ProjectInDB.model_validate(p) for p in projects], int(total or 0)
 
     async def add_user_to_project(self, user_id: int, project_id: int) -> None:
+        """
+        Add a user to a project (many-to-many relationship).
+        Raises BusinessException if user or project not found.
+        """
         logger.debug(
             "Adding user to project",
             user_id=user_id,
@@ -131,6 +152,10 @@ class ProjectService:
                 )
 
     async def remove_user_from_project(self, user_id: int, project_id: int) -> None:
+        """
+        Remove a user from a project (many-to-many relationship).
+        Raises BusinessException if user or project not found.
+        """
         logger.debug(
             "Removing user from project",
             user_id=user_id,
@@ -165,6 +190,10 @@ class ProjectService:
     async def update_project(
         self, project_id: int, project_data: ProjectCreate
     ) -> ProjectInDB:
+        """
+        Update an existing project's information by ID.
+        Raises BusinessException if project not found or name is duplicate.
+        """
         logger.debug(
             "Attempting to update project",
             project_id=project_id,
@@ -236,6 +265,10 @@ class ProjectService:
             return ProjectInDB.model_validate(project)
 
     async def delete_project(self, project_id: int) -> None:
+        """
+        Delete a project by its unique ID.
+        Raises BusinessException if project not found.
+        """
         logger.debug("Attempting to delete project", project_id=project_id)
         async with self.async_session_factory() as session:
             result = await session.execute(

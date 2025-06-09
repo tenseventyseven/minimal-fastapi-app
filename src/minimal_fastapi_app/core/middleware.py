@@ -4,6 +4,9 @@ from starlette.requests import Request
 
 
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
+    # Middleware to bind request info and body to structlog contextvars.
+    # Enables trace/log correlation and observability (trace_id, etc)
+    # in logs and error responses.
     async def dispatch(self, request: Request, call_next):
         structlog.contextvars.clear_contextvars()
         structlog.contextvars.bind_contextvars(

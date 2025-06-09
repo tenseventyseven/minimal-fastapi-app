@@ -5,6 +5,13 @@ from minimal_fastapi_app.core.db import Base
 
 
 class UserORM(Base):
+    """
+    SQLAlchemy ORM for users table.
+    - Email is unique and indexed.
+    - Linked to projects via user_project_association (many-to-many).
+    - created_at is set on creation.
+    """
+
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)

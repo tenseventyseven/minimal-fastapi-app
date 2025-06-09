@@ -13,18 +13,24 @@ logger = get_logger(__name__)
 
 
 class UserService:
-    """Service layer for user operations using SQLAlchemy async ORM"""
+    """Service layer for user operations using SQLAlchemy async ORM."""
 
     def __init__(self):
+        # Factory for creating async DB sessions
         self.async_session_factory = get_async_session()
 
     async def create_user(self, user_data: UserCreate) -> UserInDB:
+        """
+        Create a new user in the database.
+        Checks for duplicate email before creation.
+        Raises BusinessException if email already exists.
+        """
         logger.debug(
             "Attempting to create user",
             user_data=user_data.model_dump(),
         )
         async with self.async_session_factory() as session:
-            # Check for duplicate email
+            # Check for duplicate email to enforce uniqueness constraint
             existing = await session.execute(
                 select(UserORM).where(UserORM.email == str(user_data.email))
             )
@@ -54,6 +60,7 @@ class UserService:
                     user_id=user.id,
                 )
             except IntegrityError:
+                # Rollback in case of DB constraint violation (e.g., duplicate email)
                 await session.rollback()
                 logger.warning(
                     "Failed to create user due to duplicate email",
@@ -72,6 +79,10 @@ class UserService:
             return UserInDB.model_validate(user)
 
     async def get_user_by_id(self, user_id: int) -> UserInDB:
+        """
+        Retrieve a user by their unique ID.
+        Raises BusinessException if user is not found.
+        """
         logger.debug("Fetching user by ID", user_id=user_id)
         async with self.async_session_factory() as session:
             result = await session.execute(select(UserORM).where(UserORM.id == user_id))
@@ -91,6 +102,10 @@ class UserService:
     async def get_users(
         self, skip: int = 0, limit: int = 100
     ) -> tuple[list[UserInDB], int]:
+        """
+        Retrieve a paginated list of users and the total count.
+        Useful for API pagination endpoints.
+        """
         logger.debug(
             "Fetching users with pagination",
             skip=skip,
@@ -104,6 +119,10 @@ class UserService:
             return [UserInDB.model_validate(u) for u in users], int(total or 0)
 
     async def update_user(self, user_id: int, user_data: UserUpdate) -> UserInDB:
+        """
+        Update an existing user's information by ID.
+        Raises BusinessException if user not found or email is duplicate.
+        """
         logger.debug(
             "Attempting to update user",
             user_id=user_id,
@@ -173,6 +192,10 @@ class UserService:
             return UserInDB.model_validate(user)
 
     async def delete_user(self, user_id: int) -> None:
+        """
+        Delete a user by their unique ID.
+        Raises BusinessException if user not found.
+        """
         logger.debug("Attempting to delete user", user_id=user_id)
         async with self.async_session_factory() as session:
             result = await session.execute(select(UserORM).where(UserORM.id == user_id))

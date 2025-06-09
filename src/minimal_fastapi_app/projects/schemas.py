@@ -5,6 +5,11 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class ProjectCreate(BaseModel):
+    """
+    Pydantic schema for creating a new project.
+    All fields required except description (optional).
+    """
+
     name: str = Field(..., min_length=1, max_length=100, description="Project name")
     description: Optional[str] = Field(
         None, max_length=255, description="Project description"
@@ -17,6 +22,11 @@ class ProjectCreate(BaseModel):
 
 
 class ProjectInDB(BaseModel):
+    """
+    Pydantic schema representing a project as stored in the database.
+    Includes internal fields.
+    """
+
     id: int = Field(..., gt=0, description="Project ID")
     name: str = Field(..., min_length=1, max_length=100, description="Project name")
     description: Optional[str] = Field(
@@ -30,6 +40,11 @@ class ProjectInDB(BaseModel):
 
 
 class Project(ProjectInDB):
+    """
+    Pydantic schema for project returned in API responses.
+    Inherits from ProjectInDB.
+    """
+
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={

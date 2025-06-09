@@ -5,6 +5,11 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 class UserCreate(BaseModel):
+    """
+    Pydantic schema for creating a new user.
+    All fields required except age (optional).
+    """
+
     name: str = Field(..., min_length=1, max_length=100, description="User's full name")
     email: EmailStr = Field(..., description="User's email address")
     age: Optional[int] = Field(None, ge=0, le=150, description="User's age")
@@ -16,6 +21,11 @@ class UserCreate(BaseModel):
 
 
 class UserUpdate(BaseModel):
+    """
+    Pydantic schema for updating an existing user.
+    All fields optional.
+    """
+
     name: Optional[str] = Field(
         None, min_length=1, max_length=100, description="User's full name"
     )
@@ -29,6 +39,11 @@ class UserUpdate(BaseModel):
 
 
 class UserInDB(BaseModel):
+    """
+    Pydantic schema representing a user as stored in the database.
+    Includes internal fields.
+    """
+
     id: int = Field(..., gt=0, description="User ID")
     name: str = Field(..., min_length=1, max_length=100, description="User's full name")
     email: str = Field(..., description="User's email address")
@@ -41,6 +56,11 @@ class UserInDB(BaseModel):
 
 
 class User(UserInDB):
+    """
+    Pydantic schema for user returned in API responses.
+    Inherits from UserInDB.
+    """
+
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={

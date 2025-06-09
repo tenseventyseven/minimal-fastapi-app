@@ -33,6 +33,7 @@ from minimal_fastapi_app.users.models import Base as UserBase
 configure_logging()
 logger = get_logger(__name__)
 
+# Load application settings from environment/config
 settings = get_settings()
 
 # Minimal tracing setup for context propagation (no exporters needed)
@@ -41,7 +42,7 @@ trace.set_tracer_provider(TracerProvider())
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan events"""
+    """Application lifespan events: startup and shutdown."""
     logger.info(
         "Application starting up",
         app_name=settings.app_name,
@@ -50,7 +51,7 @@ async def lifespan(app: FastAPI):
         debug=settings.debug,
     )
 
-    # Create database tables
+    # Create database tables on startup (for demo/dev only; use migrations in prod)
     engine = get_engine()
     async with engine.begin() as conn:
         await conn.run_sync(UserBase.metadata.create_all)
@@ -62,6 +63,7 @@ async def lifespan(app: FastAPI):
     logger.info("Application shutting down", app_name=settings.app_name)
 
 
+# Create FastAPI app instance with metadata and middleware
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
@@ -70,6 +72,7 @@ app = FastAPI(
     lifespan=lifespan,
     openapi_tags=users_tags_metadata + projects_tags_metadata,
 )
+# Register request logging middleware for trace/log correlation
 app.add_middleware(RequestLoggingMiddleware)
 
 # Instrument FastAPI for OpenTelemetry (for span/trace IDs in logs)
@@ -85,14 +88,14 @@ if settings.enable_cors:
         allow_headers=["*"],
     )
 
-
-# Register only the business exception handler (ignore type checker false positive)
+# Register exception handlers before including routers to ensure all errors are caught
 app.add_exception_handler(BusinessException, business_exception_handler)  # type: ignore
 
 
 # Global exception handler for HTTPException
 @app.exception_handler(HTTPException)
 def http_exception_handler(request: Request, exc: HTTPException):
+    # Returns consistent error format for HTTP errors
     return JSONResponse(
         status_code=exc.status_code,
         content={
@@ -106,6 +109,7 @@ def http_exception_handler(request: Request, exc: HTTPException):
 # Global exception handler for RequestValidationError
 @app.exception_handler(FastAPIRequestValidationError)
 def validation_exception_handler(request: Request, exc: FastAPIRequestValidationError):
+    # Returns consistent error format for validation errors
     return JSONResponse(
         status_code=422,
         content={
@@ -116,14 +120,14 @@ def validation_exception_handler(request: Request, exc: FastAPIRequestValidation
     )
 
 
-# Include routers with proper prefix
+# Include routers with proper prefix and tags
 app.include_router(users_router)
 app.include_router(projects_router)
 
 
 @app.get("/", response_model=StatusResponse)
 def read_root(request: Request):
-    """Root endpoint with application status"""
+    """Root endpoint with application status."""
     logger.info("Root endpoint accessed")
     return StatusResponse(
         message="Hello World",
@@ -135,14 +139,14 @@ def read_root(request: Request):
 
 @app.get("/health", response_model=HealthCheck)
 def health_check(request: Request):
-    """Health check endpoint"""
+    """Health check endpoint."""
     logger.debug("Health check endpoint accessed")
     return HealthCheck(status="healthy")
 
 
 @app.get("/info")
 def app_info(request: Request):
-    """Application information endpoint"""
+    """Application information endpoint."""
     logger.info("App info endpoint accessed")
     return {
         "app_name": settings.app_name,

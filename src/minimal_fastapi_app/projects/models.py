@@ -16,15 +16,22 @@ user_project_association = Table(
 
 
 class ProjectORM(Base):
+    """
+    SQLAlchemy ORM for projects table.
+    - Project name is unique.
+    - Linked to users via user_project_association (many-to-many).
+    - created_at is set on creation.
+    """
+
     __tablename__ = "projects"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(100), nullable=False)
+    name = Column(String(100), unique=True, nullable=False, index=True)
     description = Column(String(255), nullable=True)
     created_at = Column(DateTime, nullable=False)
     users = relationship(
         "UserORM",
-        secondary=user_project_association,
+        secondary="user_project_association",
         back_populates="projects",
         lazy="selectin",
     )
