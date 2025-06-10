@@ -1,22 +1,13 @@
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Table
+from sqlalchemy import DateTime, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from minimal_fastapi_app.association_tables import user_project_association
 from minimal_fastapi_app.core.db import Base
 
 if TYPE_CHECKING:
-    # For static type checking only.
-    pass
-
-
-# Association table for many-to-many relationship
-user_project_association = Table(
-    "user_project_association",
-    Base.metadata,
-    Column("user_id", Integer, ForeignKey("users.id"), primary_key=True),
-    Column("project_id", Integer, ForeignKey("projects.id"), primary_key=True),
-)
+    from minimal_fastapi_app.users.models import UserORM  # noqa: F401
 
 
 class ProjectORM(Base):
@@ -36,9 +27,8 @@ class ProjectORM(Base):
     description: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_at: Mapped[DateTime] = mapped_column(DateTime, nullable=False)
     updated_at: Mapped[DateTime] = mapped_column(DateTime, nullable=False)
-    users = relationship(
-        "UserORM",
-        secondary="user_project_association",
+    users: Mapped[list["UserORM"]] = relationship(
+        secondary=user_project_association,
         back_populates="projects",
         lazy="selectin",
     )

@@ -1,12 +1,17 @@
+from __future__ import annotations
+
 from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from minimal_fastapi_app.association_tables import user_project_association
 from minimal_fastapi_app.core.db import Base
 
 if TYPE_CHECKING:
+    from minimal_fastapi_app.projects.models import ProjectORM
+
     # For static type checking only.
     pass
 
@@ -32,9 +37,8 @@ class UserORM(Base):
     )
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    projects = relationship(
-        "ProjectORM",
-        secondary="user_project_association",
+    projects: Mapped[list["ProjectORM"]] = relationship(
+        secondary=user_project_association,
         back_populates="users",
         lazy="selectin",
     )
