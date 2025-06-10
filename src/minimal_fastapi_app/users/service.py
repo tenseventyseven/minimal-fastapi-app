@@ -50,6 +50,7 @@ class UserService:
             email=str(user_data.email),
             age=user_data.age,
             created_at=datetime.now(),
+            updated_at=datetime.now(),  # NEW
         )
         self.db.add(user)
         try:
@@ -148,6 +149,9 @@ class UserService:
                 )
         for field, value in update_data.items():
             object.__setattr__(user, field, value)
+        object.__setattr__(
+            user, "updated_at", datetime.now()
+        )  # always update timestamp
         try:
             await self.db.commit()
             await self.db.refresh(user)

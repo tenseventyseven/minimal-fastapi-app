@@ -10,7 +10,11 @@ from minimal_fastapi_app.core.db import get_db_session
 from minimal_fastapi_app.core.exceptions import BusinessException
 from minimal_fastapi_app.core.logging import get_logger
 from minimal_fastapi_app.projects.models import ProjectORM
-from minimal_fastapi_app.projects.schemas import ProjectCreate, ProjectInDB
+from minimal_fastapi_app.projects.schemas import (
+    ProjectCreate,
+    ProjectInDB,
+    ProjectUpdate,
+)
 from minimal_fastapi_app.users.models import UserORM
 
 logger = get_logger(__name__)
@@ -51,6 +55,7 @@ class ProjectService:
             name=project_data.name,
             description=project_data.description,
             created_at=datetime.now(),
+            updated_at=datetime.now(),  # NEW
         )
         self.db.add(project)
         try:
@@ -182,7 +187,7 @@ class ProjectService:
             raise BusinessException(message="User is not in project", details=[])
 
     async def update_project(
-        self, project_id: int, project_data: ProjectCreate
+        self, project_id: int, project_data: ProjectUpdate
     ) -> ProjectInDB:
         """
         Update an existing project's information by ID.
@@ -191,7 +196,7 @@ class ProjectService:
         logger.debug(
             "Attempting to update project",
             project_id=project_id,
-            project_data=project_data.model_dump(),
+            project_data=project_data.model_dump(exclude_unset=True),
         )
         result = await self.db.execute(
             select(ProjectORM).where(ProjectORM.id == project_id)
@@ -206,31 +211,34 @@ class ProjectService:
                 message=f"Project with id '{project_id}' not found",
                 details=[],
             )
+        update_data = project_data.model_dump(exclude_unset=True)
         # Check for duplicate name (excluding self)
-        existing = await self.db.execute(
-            select(ProjectORM).where(
-                (ProjectORM.name == project_data.name) & (ProjectORM.id != project_id)
+        if "name" in update_data:
+            existing = await self.db.execute(
+                select(ProjectORM).where(
+                    (ProjectORM.name == update_data["name"])
+                    & (ProjectORM.id != project_id)
+                )
             )
-        )
-        if existing.scalar_one_or_none():
-            logger.warning(
-                "Failed to update project due to duplicate name",
-                name=project_data.name,
-            )
-            raise BusinessException(
-                message="A project with this name already exists",
-                details=[
-                    {
-                        "field": "name",
-                        "message": "Project name is already in use",
-                        "code": "name_exists",
-                    }
-                ],
-            )
-        # Assign to ORM instance attributes using object.__setattr__
-        # to avoid type checker error
-        object.__setattr__(project, "name", project_data.name)
-        object.__setattr__(project, "description", project_data.description)
+            if existing.scalar_one_or_none():
+                logger.warning(
+                    "Failed to update project due to duplicate name",
+                    name=update_data["name"],
+                )
+                raise BusinessException(
+                    message="A project with this name already exists",
+                    details=[
+                        {
+                            "field": "name",
+                            "message": "Project name is already in use",
+                            "code": "name_exists",
+                        }
+                    ],
+                )
+        for field, value in update_data.items():
+            object.__setattr__(project, field, value)
+        # always update timestamp
+        object.__setattr__(project, "updated_at", datetime.now())
         try:
             await self.db.commit()
             await self.db.refresh(project)
@@ -242,7 +250,7 @@ class ProjectService:
             await self.db.rollback()
             logger.warning(
                 "Failed to update project due to duplicate name",
-                name=project_data.name,
+                name=update_data.get("name"),
             )
             raise BusinessException(
                 message="A project with this name already exists",

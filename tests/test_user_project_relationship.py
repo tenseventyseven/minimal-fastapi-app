@@ -1,4 +1,5 @@
 # Combined user-project relationship and association tests
+import uuid
 import pytest
 from httpx import ASGITransport, AsyncClient
 
@@ -9,15 +10,15 @@ async def test_add_user_to_project(app):
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as ac:
-        # Create user
+        # Create user with unique email
         user_data = {
             "name": "User Project",
-            "email": "userproj@example.com",
+            "email": f"userproj-{uuid.uuid4()}@example.com",
         }
         user_resp = await ac.post("/v1/users/", json=user_data)
         user_id = user_resp.json()["id"]
-        # Create project
-        project_data = {"name": "Project Beta"}
+        # Create project with unique name
+        project_data = {"name": f"Project Beta {uuid.uuid4()}"}
         project_resp = await ac.post("/v1/projects/", json=project_data)
         project_id = project_resp.json()["id"]
         # Add user to project
@@ -33,14 +34,14 @@ async def test_remove_user_from_project(app):
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as ac:
-        # Create user and project
+        # Create user and project with unique email and name
         user_data = {
             "name": "User Remove",
-            "email": "userremove@ex.com",
+            "email": f"userremove-{uuid.uuid4()}@ex.com",
         }
         user_resp = await ac.post("/v1/users/", json=user_data)
         user_id = user_resp.json()["id"]
-        project_data = {"name": "ProjRemove"}
+        project_data = {"name": f"ProjRemove {uuid.uuid4()}"}
         project_resp = await ac.post("/v1/projects/", json=project_data)
         project_id = project_resp.json()["id"]
         # Add user to project
@@ -62,10 +63,10 @@ async def test_list_users_in_project(app):
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as ac:
-        user_data = {"name": "User1", "email": "user1@ex.com"}
+        user_data = {"name": "User1", "email": f"user1-{uuid.uuid4()}@ex.com"}
         user_resp = await ac.post("/v1/users/", json=user_data)
         user_id = user_resp.json()["id"]
-        project_data = {"name": "Proj1"}
+        project_data = {"name": f"Proj1 {uuid.uuid4()}"}
         project_resp = await ac.post("/v1/projects/", json=project_data)
         project_id = project_resp.json()["id"]
         await ac.post(f"/v1/projects/{project_id}/users/{user_id}")
@@ -80,18 +81,20 @@ async def test_list_projects_for_user(app):
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as ac:
-        user_data = {"name": "User2", "email": "user2@ex.com"}
+        user_data = {"name": "User2", "email": f"user2-{uuid.uuid4()}@ex.com"}
         user_resp = await ac.post("/v1/users/", json=user_data)
         user_id = user_resp.json()["id"]
-        project1 = (await ac.post("/v1/projects/", json={"name": "ProjA"})).json()
-        project2 = (await ac.post("/v1/projects/", json={"name": "ProjB"})).json()
+        project1_name = f"ProjA {uuid.uuid4()}"
+        project2_name = f"ProjB {uuid.uuid4()}"
+        project1 = (await ac.post("/v1/projects/", json={"name": project1_name})).json()
+        project2 = (await ac.post("/v1/projects/", json={"name": project2_name})).json()
         await ac.post(f"/v1/projects/{project1['id']}/users/{user_id}")
         await ac.post(f"/v1/projects/{project2['id']}/users/{user_id}")
         resp = await ac.get(f"/v1/projects/user/{user_id}/projects")
         assert resp.status_code == 200
         projects = resp.json()
         project_names = [p["name"] for p in projects]
-        assert "ProjA" in project_names and "ProjB" in project_names
+        assert project1_name in project_names and project2_name in project_names
 
 
 @pytest.mark.asyncio

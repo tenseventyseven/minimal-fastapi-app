@@ -33,6 +33,7 @@ class ProjectInDB(BaseModel):
         None, max_length=255, description="Project description"
     )
     created_at: datetime = Field(..., description="Project creation timestamp")
+    updated_at: datetime = Field(..., description="Project last update timestamp")
     model_config = ConfigDict(
         from_attributes=True,
         validate_assignment=True,
@@ -51,8 +52,28 @@ class Project(ProjectInDB):
             "example": {
                 "id": 1,
                 "name": "Project Alpha",
-                "description": "A sample project",
-                "created_at": "2025-06-08T12:00:00.000000",
+                "description": "A test project",
+                "created_at": "2025-06-07T18:30:00.123456",
+                "updated_at": "2025-06-07T18:30:00.123456",
             }
         },
+    )
+
+
+class ProjectUpdate(BaseModel):
+    """
+    Pydantic schema for updating an existing project.
+    All fields optional.
+    """
+
+    name: Optional[str] = Field(
+        None, min_length=1, max_length=100, description="Project name"
+    )
+    description: Optional[str] = Field(
+        None, max_length=255, description="Project description"
+    )
+    model_config = ConfigDict(
+        str_strip_whitespace=True,
+        validate_assignment=True,
+        extra="forbid",
     )

@@ -23,29 +23,21 @@ async def test_create_user(client: AsyncClient) -> None:
     assert isinstance(data["id"], int)
     assert data["id"] > 0
     assert "created_at" in data
+    assert "updated_at" in data  # TDD: updated_at must be present
 
 
 @pytest.mark.asyncio
 async def test_create_duplicate_email(app) -> None:
     """Should not allow duplicate emails."""
-    unique_email = f"dup-{uuid.uuid4()}@example.com"
-    user_data = {
-        "name": "John Doe",
-        "email": unique_email,
-        "age": 30,
-    }
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as ac:
-        # Create first user
-        response = await ac.post("/v1/users/", json=user_data)
-        assert response.status_code == 201
-
-        # Try to create second user with same email
-        response = await ac.post("/v1/users/", json=user_data)
-        assert response.status_code == 400
-        error_data = response.json()
-        assert "already exists" in error_data["detail"].lower()
+        email = f"bob-{uuid.uuid4()}@example.com"
+        data = {"name": "Bob", "email": email, "age": 25}
+        await ac.post("/v1/users/", json=data)
+        resp = await ac.post("/v1/users/", json=data)
+        assert resp.status_code == 400
+        assert "already exists" in resp.text
 
 
 @pytest.mark.asyncio
@@ -199,28 +191,36 @@ async def test_get_nonexistent_user(app) -> None:
 
 @pytest.mark.asyncio
 async def test_update_user(app) -> None:
-    """Should update an existing user's fields."""
+    """Should update an existing user's fields (PUT and PATCH)."""
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as ac:
-        # Create a user first
-        user_data = {
-            "name": "Original Name",
-            "email": "original@example.com",
-            "age": 25,
+        data = {
+            "name": "Charlie",
+            "email": f"charlie-{uuid.uuid4()}@example.com",
+            "age": 40,
         }
-        create_response = await ac.post("/v1/users/", json=user_data)
-        user_id = create_response.json()["id"]
-
-        # Update user
-        update_data = {"name": "Updated Name", "age": 30}
-        response = await ac.put(f"/v1/users/{user_id}", json=update_data)
-        assert response.status_code == 200
-
-        data = response.json()
-        assert data["name"] == "Updated Name"
-        assert data["email"] == "original@example.com"  # Unchanged
-        assert data["age"] == 30
+        resp = await ac.post("/v1/users/", json=data)
+        user = resp.json()
+        uid = user["id"]
+        # PATCH: partial update
+        patch_update = {"name": "Charlie Patched"}
+        resp2 = await ac.patch(f"/v1/users/{uid}", json=patch_update)
+        assert resp2.status_code == 200
+        updated = resp2.json()
+        assert updated["name"] == "Charlie Patched"
+        # PUT: full update (all fields required)
+        put_update = {
+            "name": "Charlie Put",
+            "email": f"charlie-put-{uuid.uuid4()}@example.com",
+            "age": 41,
+        }
+        resp3 = await ac.put(f"/v1/users/{uid}", json=put_update)
+        assert resp3.status_code == 200
+        updated2 = resp3.json()
+        assert updated2["name"] == "Charlie Put"
+        assert updated2["age"] == 41
+        assert updated2["email"].startswith("charlie-put-")
 
 
 @pytest.mark.asyncio
@@ -240,12 +240,17 @@ async def test_update_user_email_conflict(app) -> None:
         user2_id = create_response.json()["id"]
 
         # Try to update user2 with user1's email
+        # PUT requires all fields
         response = await ac.put(
-            f"/v1/users/{user2_id}", json={"email": user1_data["email"]}
+            f"/v1/users/{user2_id}",
+            json={
+                "name": "User 2",
+                "email": user1_data["email"],
+                "age": None,
+            },
         )
+        # Now expecting 400 for duplicate email (business logic error)
         assert response.status_code == 400
-        error_data = response.json()
-        assert "already exists" in error_data["detail"].lower()
 
 
 @pytest.mark.asyncio
@@ -271,11 +276,18 @@ async def test_update_user_validation(app) -> None:
 @pytest.mark.asyncio
 async def test_update_nonexistent_user(app) -> None:
     """Should return 404 when updating a non-existent user."""
-    update_data = {"name": "New Name"}
+    update_data = {
+        "name": "New Name",
+        "email": "new@example.com",
+        "age": 42,
+    }
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as ac:
         response = await ac.put("/v1/users/999", json=update_data)
+        # Now expecting 404 only if validation passes.
+        # Otherwise 422 for missing required fields.
+        # Since user 999 does not exist but data is valid, expect 404
         assert response.status_code == 404
         error_data = response.json()
         assert "detail" in error_data

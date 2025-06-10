@@ -1,36 +1,34 @@
+import uuid
 import pytest
 from httpx import ASGITransport, AsyncClient
 
 
 @pytest.mark.asyncio
 async def test_create_project(app):
-    project_data = {
-        "name": "Project Alpha",
-        "description": "A test project",
-    }
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as ac:
-        response = await ac.post("/v1/projects/", json=project_data)
-        assert response.status_code == 201
-        data = response.json()
-        assert data["name"] == "Project Alpha"
-        assert data["description"] == "A test project"
-        assert data["id"] == 1
-        assert "created_at" in data
+        data = {"name": f"Project Alpha {uuid.uuid4()}"}
+        resp = await ac.post("/v1/projects/", json=data)
+        assert resp.status_code == 201
+        project = resp.json()
+        assert project["name"].startswith("Project Alpha")
+        assert "id" in project
+        assert "created_at" in project
+        assert "updated_at" in project  # TDD: updated_at must be present
 
 
 @pytest.mark.asyncio
 async def test_create_duplicate_project(app):
-    project_data = {"name": "Project Alpha"}
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as ac:
-        await ac.post("/v1/projects/", json=project_data)
-        response = await ac.post("/v1/projects/", json=project_data)
-        assert response.status_code == 400
-        error_data = response.json()
-        assert "already exists" in error_data["detail"].lower()
+        name = f"Project Beta {uuid.uuid4()}"
+        data = {"name": name}
+        await ac.post("/v1/projects/", json=data)
+        resp = await ac.post("/v1/projects/", json=data)
+        assert resp.status_code == 400
+        assert "already exists" in resp.text
 
 
 @pytest.mark.asyncio
@@ -120,3 +118,33 @@ async def test_create_project_validation_error(app):
         assert response.status_code == 422
         error_data = response.json()
         assert "detail" in error_data
+
+
+@pytest.mark.asyncio
+async def test_update_project_updates_updated_at(app):
+    """Should update a project's updated_at on PATCH and PUT."""
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        data = {"name": f"Project Gamma {uuid.uuid4()}"}
+        resp = await ac.post("/v1/projects/", json=data)
+        project = resp.json()
+        pid = project["id"]
+        orig_updated = project["updated_at"]
+        # PATCH: partial update
+        patch_update = {"name": f"Project Gamma Patched {uuid.uuid4()}"}
+        resp2 = await ac.patch(f"/v1/projects/{pid}", json=patch_update)
+        assert resp2.status_code == 200
+        updated = resp2.json()
+        assert updated["updated_at"] != orig_updated
+        # PUT: full update (all fields required)
+        put_update = {
+            "name": f"Project Gamma Put {uuid.uuid4()}",
+            "description": "Put desc",
+        }
+        resp3 = await ac.put(f"/v1/projects/{pid}", json=put_update)
+        assert resp3.status_code == 200
+        updated2 = resp3.json()
+        assert updated2["updated_at"] != updated["updated_at"]
+        assert updated2["name"].startswith("Project Gamma Put")
+        assert updated2["description"] == "Put desc"

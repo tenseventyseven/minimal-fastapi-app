@@ -49,6 +49,7 @@ class UserInDB(BaseModel):
     email: str = Field(..., description="User's email address")
     age: Optional[int] = Field(None, ge=0, le=150, description="User's age")
     created_at: datetime = Field(..., description="User creation timestamp")
+    updated_at: datetime = Field(..., description="User last update timestamp")
     model_config = ConfigDict(
         from_attributes=True,
         validate_assignment=True,
@@ -70,6 +71,7 @@ class User(UserInDB):
                 "email": "john@example.com",
                 "age": 30,
                 "created_at": "2025-06-07T18:30:00.123456",
+                "updated_at": "2025-06-07T18:30:00.123456",
             }
         },
     )

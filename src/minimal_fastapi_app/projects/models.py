@@ -33,6 +33,7 @@ class ProjectORM(Base):
     name = Column(String(100), unique=True, nullable=False, index=True)
     description = Column(String(255), nullable=True)
     created_at = Column(DateTime, nullable=False)
+    updated_at = Column(DateTime, nullable=False)  # NEW
     users = relationship(
         "UserORM",
         secondary="user_project_association",

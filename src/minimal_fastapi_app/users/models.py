@@ -25,6 +25,7 @@ class UserORM(Base):
     email = Column(String(255), unique=True, nullable=False, index=True)
     age = Column(Integer, nullable=True)
     created_at = Column(DateTime, nullable=False)
+    updated_at = Column(DateTime, nullable=False)
     projects = relationship(
         "ProjectORM",
         secondary="user_project_association",

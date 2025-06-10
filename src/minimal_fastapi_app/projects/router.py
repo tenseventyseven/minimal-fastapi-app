@@ -6,7 +6,7 @@ from minimal_fastapi_app.core.db import get_db_session
 from minimal_fastapi_app.core.exceptions import BusinessException, enrich_log_fields
 from minimal_fastapi_app.core.logging import get_logger
 from minimal_fastapi_app.projects.models import ProjectORM
-from minimal_fastapi_app.projects.schemas import Project, ProjectCreate
+from minimal_fastapi_app.projects.schemas import Project, ProjectCreate, ProjectUpdate
 from minimal_fastapi_app.projects.service import ProjectService
 from minimal_fastapi_app.users.models import UserORM
 from minimal_fastapi_app.users.schemas import User
@@ -137,7 +137,10 @@ async def get_project(
     "/{project_id}",
     response_model=Project,
     tags=["projects"],
-    description="Update a project by ID.",
+    description=(
+        "Update a project by ID. All fields must be provided. "
+        "Missing fields will be set to null or default."
+    ),
     summary="Update Project",
     operation_id="updateProject",
     responses={
@@ -148,19 +151,78 @@ async def get_project(
 )
 async def update_project(
     project_id: int,
-    project_data: ProjectCreate,
+    project_data: ProjectCreate,  # <-- require all fields for PUT
     request: Request,
     db: AsyncSession = Depends(get_db_session),
 ) -> Project:
+    """
+    Update a project by ID. All fields must be provided.
+    Missing fields will be set to null or default.
+    Args:
+        project_id (int): The project ID.
+        project_data (ProjectCreate): The project update payload (full replacement).
+        request (Request): The incoming HTTP request.
+    Returns:
+        Project: The updated project object.
+    Raises:
+        HTTPException: If project is not found or update fails.
+    """
     logger.info(
         "Update project endpoint called",
         **enrich_log_fields({"project_id": project_id}, request, user_id=None),
     )
     project_service = ProjectService(db)
     try:
-        project = await project_service.update_project(project_id, project_data)
+        project_update = ProjectUpdate(**project_data.model_dump())
+        project = await project_service.update_project(project_id, project_update)
         logger.info(
             "Project updated",
+            **enrich_log_fields({"project_id": project_id}, request, user_id=None),
+        )
+    except BusinessException as exc:
+        raise HTTPException(status_code=404, detail=exc.message)
+    return Project.model_validate(project)
+
+
+@router.patch(
+    "/{project_id}",
+    response_model=Project,
+    tags=["projects"],
+    description="Partially update a project by ID.",
+    summary="Patch Project",
+    operation_id="patchProject",
+    responses={
+        200: {"description": "Project updated successfully."},
+        400: {"description": "Duplicate name or validation error."},
+        404: {"description": "Project not found."},
+    },
+)
+async def patch_project(
+    project_id: int,
+    project_data: ProjectUpdate,
+    request: Request,
+    db: AsyncSession = Depends(get_db_session),
+) -> Project:
+    """
+    Partially update a project by ID. Only the provided fields will be updated.
+    Args:
+        project_id (int): The project ID.
+        project_data (ProjectUpdate): The project update payload (partial).
+        request (Request): The incoming HTTP request.
+    Returns:
+        Project: The updated project object.
+    Raises:
+        HTTPException: If project is not found or update fails.
+    """
+    logger.info(
+        "Patch project endpoint called",
+        **enrich_log_fields({"project_id": project_id}, request, user_id=None),
+    )
+    project_service = ProjectService(db)
+    try:
+        project = await project_service.update_project(project_id, project_data)
+        logger.info(
+            "Project patched",
             **enrich_log_fields({"project_id": project_id}, request, user_id=None),
         )
     except BusinessException as exc:
