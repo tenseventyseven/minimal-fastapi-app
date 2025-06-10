@@ -5,6 +5,24 @@ services:
     restart: unless-stopped
     environment:
       - PYTHONPATH=/app
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/postgres
+    depends_on:
+      - db
+    networks:
+      - app-network
+
+  db:
+    image: postgres:16
+    container_name: postgres-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     networks:
       - app-network
 
@@ -24,3 +42,6 @@ services:
 networks:
   app-network:
     driver: bridge
+
+volumes:
+  postgres_data:

@@ -2,12 +2,10 @@
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from minimal_fastapi_app.main import app
-
 
 # --- Association/Relationship Actions ---
 @pytest.mark.asyncio
-async def test_add_user_to_project():
+async def test_add_user_to_project(app):
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as ac:
@@ -31,7 +29,7 @@ async def test_add_user_to_project():
 
 
 @pytest.mark.asyncio
-async def test_remove_user_from_project():
+async def test_remove_user_from_project(app):
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as ac:
@@ -60,7 +58,7 @@ async def test_remove_user_from_project():
 
 # --- Listing/Querying Relationships ---
 @pytest.mark.asyncio
-async def test_list_users_in_project():
+async def test_list_users_in_project(app):
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as ac:
@@ -78,7 +76,7 @@ async def test_list_users_in_project():
 
 
 @pytest.mark.asyncio
-async def test_list_projects_for_user():
+async def test_list_projects_for_user(app):
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as ac:
@@ -97,7 +95,7 @@ async def test_list_projects_for_user():
 
 
 @pytest.mark.asyncio
-async def test_list_users_in_nonexistent_project():
+async def test_list_users_in_nonexistent_project(app):
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as ac:
@@ -106,7 +104,7 @@ async def test_list_users_in_nonexistent_project():
 
 
 @pytest.mark.asyncio
-async def test_list_projects_for_nonexistent_user():
+async def test_list_projects_for_nonexistent_user(app):
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as ac:

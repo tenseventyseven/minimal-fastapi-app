@@ -153,6 +153,14 @@ Projects endpoints follow a similar pattern under `/v1/projects/`.
 
 ### Run All Tests
 
+> **Note:** The PostgreSQL database service must be running before running tests. Start it with:
+>
+> ```bash
+> docker compose up -d db
+> ```
+>
+> If the database is not running, tests will fail with a connection error (e.g., `could not connect to server: Connection refused`). Simply start the db service and re-run your tests.
+
 Use [pytest](https://docs.pytest.org/) to run all tests:
 
 ```bash

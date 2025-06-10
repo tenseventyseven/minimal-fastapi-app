@@ -1,5 +1,4 @@
 import json
-from functools import lru_cache
 from typing import Any, Literal
 
 from pydantic import Field, field_validator
@@ -38,7 +37,8 @@ class Settings(BaseSettings):
 
     # Database settings (for future use)
     database_url: str = Field(
-        default="sqlite+aiosqlite:///./app.db", description="Database connection URL"
+        default=("postgresql+asyncpg://postgres:postgres@db:5432/postgres"),
+        description="Database connection URL",
     )
 
     # Logging settings
@@ -100,7 +100,6 @@ class Settings(BaseSettings):
         return v
 
 
-@lru_cache(maxsize=1)
 def get_settings() -> Settings:
-    """Return a cached Settings instance, always using current env vars."""
+    """Return a Settings instance, always using current env vars."""
     return Settings()

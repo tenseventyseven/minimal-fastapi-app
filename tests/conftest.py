@@ -1,61 +1,80 @@
-import asyncio
+# Set the test database URL before any app imports
 import os
 
-import pytest
+os.environ["DATABASE_URL"] = (
+    "postgresql+asyncpg://postgres:postgres@localhost:5432/postgres_test"
+)
 
-from minimal_fastapi_app.core.db import get_engine
-from minimal_fastapi_app.projects.models import ProjectORM
-from minimal_fastapi_app.users.models import Base as UserBase
-from minimal_fastapi_app.users.models import UserORM
+# Now import the rest
+from typing import AsyncGenerator
 
-# Always set the async driver for SQLite before any app import
-os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///./app.db"
+import pytest_asyncio
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import NullPool
 
-
-@pytest.fixture(scope="session", autouse=True)
-def setup_database():
-    """Create all tables before any tests run."""
-
-    async def _create():
-        engine = get_engine()
-        async with engine.begin() as conn:
-            await conn.run_sync(UserBase.metadata.create_all)
-
-    asyncio.run(_create())
-    yield
-    # Optionally, drop tables after tests (uncomment if you want a clean DB)
-    # async def _drop():
-    #     engine = get_engine()
-    #     async with engine.begin() as conn:
-    #         await conn.run_sync(UserBase.metadata.drop_all)
-    # asyncio.run(_drop())
+from minimal_fastapi_app.core.db import Base
+from minimal_fastapi_app.projects import models as _project_models  # noqa: F401
+from minimal_fastapi_app.users import models as _user_models  # noqa: F401
 
 
-@pytest.fixture(autouse=True)
-def clean_users_table():
-    """Truncate the users table before each test for isolation."""
+@pytest_asyncio.fixture(scope="session")
+async def db_engine():
+    """Create a single engine for the entire test session."""
+    engine = create_async_engine(
+        os.environ["DATABASE_URL"], echo=False, poolclass=NullPool
+    )
+    # Create all tables once at the beginning
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+        await conn.run_sync(Base.metadata.create_all)
+    yield engine
+    await engine.dispose()
 
-    async def _truncate():
-        engine = get_engine()
-        async with engine.begin() as conn:
-            await conn.execute(UserORM.__table__.delete())
 
-    asyncio.run(_truncate())
-    yield
+@pytest_asyncio.fixture(scope="session")
+async def session_factory(db_engine):
+    """Create a single session factory for the entire test session."""
+    return async_sessionmaker(db_engine, expire_on_commit=False, class_=AsyncSession)
 
 
-@pytest.fixture(autouse=True)
-def clean_projects_table():
-    """Truncate the projects and association tables before each test for isolation."""
+# This should match the dependency used in your app/routes
+async def get_test_db_session(session_factory) -> AsyncGenerator[AsyncSession, None]:
+    async with session_factory() as session:
+        yield session
 
-    async def _truncate():
-        engine = get_engine()
-        async with engine.begin() as conn:
-            await conn.execute(ProjectORM.__table__.delete())
-            # Also clear association table
-            from minimal_fastapi_app.projects.models import user_project_association
 
-            await conn.execute(user_project_association.delete())
+@pytest_asyncio.fixture(scope="session")
+async def app(db_engine, session_factory):
+    """Create app with dependency override for test DB session."""
+    from minimal_fastapi_app.main import app as fastapi_app
 
-    asyncio.run(_truncate())
-    yield
+    # Dependency override for get_db_session
+    async def override_get_db_session():
+        async with session_factory() as session:
+            yield session
+
+    fastapi_app.dependency_overrides.clear()
+    from minimal_fastapi_app.core.db import get_db_session
+
+    fastapi_app.dependency_overrides[get_db_session] = override_get_db_session
+    yield fastapi_app
+    fastapi_app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture(scope="function")
+async def db_session(session_factory):
+    """Provide a clean database session for each test (transaction rollback)."""
+    async with session_factory() as session:
+        await session.begin()
+        yield session
+        await session.rollback()
+
+
+@pytest_asyncio.fixture(scope="function")
+async def client(app):
+    """Provide HTTP client for each test."""
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        yield ac
