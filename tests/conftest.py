@@ -2,7 +2,7 @@
 import os
 
 os.environ["DATABASE_URL"] = (
-    "postgresql+asyncpg://postgres:postgres@localhost:5432/postgres_test"
+    "postgresql+asyncpg://pytest:pytest@localhost:5432/pytest"
 )
 
 # Now import the rest

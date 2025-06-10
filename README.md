@@ -10,7 +10,7 @@ A production-grade, minimal FastAPI application using modern Python tooling, cle
 - **SQLAlchemy (async)** for database access
 - **uv** for dependency management and scripts
 - **Hatchling** for builds
-- **Docker/Podman** for containers
+- **Podman** for containers
 - **nginx** as a production reverse proxy
 - **pytest** for testing
 - **ruff** for linting/formatting
@@ -89,11 +89,9 @@ minimal-fastapi-app/
    uv run ruff format .
    uv run ruff check --fix .
    ```
-5. **Production Build (Docker/Podman)**
+5. **Production Build (Podman)**
    ```bash
-   podman-compose up -d --build
-   # or
-   docker-compose up -d --build
+   podman compose up -d --build
    # App at http://localhost:8000
    ```
 
@@ -156,7 +154,14 @@ Projects endpoints follow a similar pattern under `/v1/projects/`.
 > **Note:** The PostgreSQL database service must be running before running tests. Start it with:
 >
 > ```bash
-> docker compose up -d db
+> podman compose up -d db
+> ```
+>
+> **First time setup:** Create a dedicated test database and user for pytest:
+>
+> ```bash
+> podman compose exec db psql -U postgres -c "CREATE USER pytest WITH PASSWORD 'pytest' CREATEDB;"
+> podman compose exec db psql -U postgres -c "CREATE DATABASE pytest OWNER pytest;"
 > ```
 >
 > If the database is not running, tests will fail with a connection error (e.g., `could not connect to server: Connection refused`). Simply start the db service and re-run your tests.
@@ -199,7 +204,7 @@ uv run ruff format . && uv run ruff check --fix .
 - **Format/lint:** `uv run ruff format . && uv run ruff check --fix .`
 - **Build:** `uv build`
 - **Run tests:** `uv run pytest`
-- **Run in Docker:** `podman-compose up -d --build`
+- **Run in Podman:** `podman compose up -d --build`
 
 ## Production Considerations
 
@@ -264,7 +269,7 @@ MIT License. See `LICENSE` file for details.
 
 - **dev.Dockerfile** and **compose.override.yaml** are provided for local development:
   - Use `dev.Dockerfile` for a hot-reloading, development-friendly container.
-  - Use `docker-compose -f compose.yaml -f compose.override.yaml up` to start the app in development mode with code reloading and local `.env.development`.
+  - Use `podman compose -f compose.yaml -f compose.override.yaml up` to start the app in development mode with code reloading and local `.env.development`.
 
 ## Trace/Log Correlation Example
 
@@ -334,13 +339,11 @@ All logs and error responses include the OpenTelemetry trace ID for easy correla
 
 ## How to Deploy
 
-### Docker/Podman (Recommended for Production)
+### Podman (Recommended for Production)
 
-1. **Build and run with Docker Compose:**
+1. **Build and run with Podman Compose:**
    ```bash
-   docker-compose up -d --build
-   # or
-   podman-compose up -d --build
+   podman compose up -d --build
    # App will be available at http://localhost:8000
    ```
 2. **Production environment:**
@@ -348,7 +351,7 @@ All logs and error responses include the OpenTelemetry trace ID for easy correla
    - The `Dockerfile` and `nginx.conf` are set up for production best practices (non-root, port 8000, static files, reverse proxy, etc).
    - For local development with hot-reloading, use:
      ```bash
-     docker-compose -f compose.yaml -f compose.override.yaml up
+     podman compose -f compose.yaml -f compose.override.yaml up
      ```
 3. **HTTPS:**
    - In production, always run behind a reverse proxy (e.g., nginx) that terminates TLS/SSL.
