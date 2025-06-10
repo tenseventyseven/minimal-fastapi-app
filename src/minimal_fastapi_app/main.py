@@ -1,3 +1,4 @@
+import os
 from contextlib import asynccontextmanager
 from datetime import datetime
 
@@ -38,8 +39,6 @@ trace.set_tracer_provider(TracerProvider())
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    import os
-
     # Only create tables if not running under pytest (let test fixture handle it)
     if not os.environ.get("PYTEST_CURRENT_TEST"):
         engine = get_engine()

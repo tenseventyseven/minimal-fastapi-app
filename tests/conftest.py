@@ -1,9 +1,7 @@
 # Set the test database URL before any app imports
 import os
 
-os.environ["DATABASE_URL"] = (
-    "postgresql+asyncpg://pytest:pytest@localhost:5432/pytest"
-)
+os.environ["DATABASE_URL"] = "postgresql+asyncpg://pytest:pytest@localhost:5432/pytest"
 
 # Now import the rest
 from typing import AsyncGenerator
@@ -14,6 +12,10 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.pool import NullPool
 
 from minimal_fastapi_app.core.db import Base
+
+# Import models to ensure all tables are registered with SQLAlchemy's metadata
+# before creating/dropping tables in tests. This is necessary so that
+# Base.metadata.create_all() includes all models, even if not directly referenced here.
 from minimal_fastapi_app.projects import models as _project_models  # noqa: F401
 from minimal_fastapi_app.users import models as _user_models  # noqa: F401
 

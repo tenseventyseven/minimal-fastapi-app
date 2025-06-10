@@ -1,4 +1,5 @@
 import json
+import os
 from typing import Any, Literal
 
 from pydantic import Field, field_validator
@@ -90,8 +91,6 @@ class Settings(BaseSettings):
     @field_validator("secret_key")
     @classmethod
     def validate_secret_key(cls, v, info):
-        import os
-
         env = os.getenv("ENVIRONMENT", info.data.get("environment", "development"))
         if env == "production" and v == "your-secret-key-change-this-in-production":
             raise ValueError("SECRET_KEY must be set to a secure value in production.")
