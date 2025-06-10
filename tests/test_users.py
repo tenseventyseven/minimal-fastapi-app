@@ -9,17 +9,17 @@ async def test_create_user(client: AsyncClient) -> None:
     """Should create a user and return correct fields."""
     unique_email = f"john-{uuid.uuid4()}@example.com"
     user_data = {
-        "name": "John Doe",
+        "given_name": "John",
+        "family_name": "Doe",
         "email": unique_email,
-        "age": 30,
     }
     response = await client.post("/v1/users/", json=user_data)
     assert response.status_code == 201
 
     data = response.json()
-    assert data["name"] == "John Doe"
+    assert data["given_name"] == "John"
+    assert data["family_name"] == "Doe"
     assert data["email"] == unique_email
-    assert data["age"] == 30
     assert isinstance(data["id"], int)
     assert data["id"] > 0
     assert "created_at" in data
@@ -33,7 +33,11 @@ async def test_create_duplicate_email(app) -> None:
         transport=ASGITransport(app=app), base_url="http://test"
     ) as ac:
         email = f"bob-{uuid.uuid4()}@example.com"
-        data = {"name": "Bob", "email": email, "age": 25}
+        data = {
+            "given_name": "Bob",
+            "family_name": "Smith",
+            "email": email,
+        }
         await ac.post("/v1/users/", json=data)
         resp = await ac.post("/v1/users/", json=data)
         assert resp.status_code == 400
@@ -43,7 +47,11 @@ async def test_create_duplicate_email(app) -> None:
 @pytest.mark.asyncio
 async def test_create_user_without_age(app) -> None:
     """Should create a user without age and set age to None."""
-    user_data = {"name": "Jane Doe", "email": "jane@example.com"}
+    user_data = {
+        "given_name": "Jane",
+        "family_name": "Doe",
+        "email": "jane@example.com",
+    }
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as ac:
@@ -51,16 +59,20 @@ async def test_create_user_without_age(app) -> None:
         assert response.status_code == 201
 
         data = response.json()
-        assert data["name"] == "Jane Doe"
+        assert data["given_name"] == "Jane"
+        assert data["family_name"] == "Doe"
         assert data["email"] == "jane@example.com"
-        assert data["age"] is None
 
 
 @pytest.mark.asyncio
 async def test_create_user_with_whitespace(app) -> None:
     """Should trim whitespace from user name."""
     unique_email = f"whitespace-{uuid.uuid4()}@example.com"
-    user_data = {"name": "  John Doe  ", "email": unique_email}
+    user_data = {
+        "given_name": "  John  ",
+        "family_name": "  Doe  ",
+        "email": unique_email,
+    }
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as ac:
@@ -68,7 +80,8 @@ async def test_create_user_with_whitespace(app) -> None:
         assert response.status_code == 201
 
         data = response.json()
-        assert data["name"] == "John Doe"  # Whitespace should be stripped
+        assert data["given_name"] == "John"  # Whitespace should be stripped
+        assert data["family_name"] == "Doe"  # Whitespace should be stripped
         assert data["email"] == unique_email
 
 
@@ -80,28 +93,26 @@ async def test_create_user_validation_errors(app) -> None:
     ) as ac:
         # Empty name
         response = await ac.post(
-            "/v1/users/", json={"name": "", "email": "test@example.com"}
+            "/v1/users/",
+            json={
+                "given_name": "",
+                "family_name": "",
+                "email": "test@example.com",
+            },
         )
         assert response.status_code == 422
         error_data = response.json()
         assert "detail" in error_data  # FastAPI default
 
-        # Invalid age (negative)
-        response = await ac.post(
-            "/v1/users/", json={"name": "Test", "email": "test@example.com", "age": -1}
-        )
-        assert response.status_code == 422
-
-        # Invalid age (too high)
-        response = await ac.post(
-            "/v1/users/", json={"name": "Test", "email": "test@example.com", "age": 200}
-        )
-        assert response.status_code == 422
-
         # Extra field (should be rejected)
         response = await ac.post(
             "/v1/users/",
-            json={"name": "Test", "email": "test@example.com", "extra": "field"},
+            json={
+                "given_name": "Test",
+                "family_name": "User",
+                "email": "test@example.com",
+                "extra": "field",
+            },
         )
         assert response.status_code == 422
 
@@ -133,7 +144,8 @@ async def test_get_users_with_pagination(app) -> None:
         # Create multiple users
         for i in range(5):
             user_data = {
-                "name": f"User {unique_prefix}-{i}",
+                "given_name": f"User{unique_prefix}-{i}",
+                "family_name": f"Fam{unique_prefix}-{i}",
                 "email": f"user{unique_prefix}-{i}@example.com",
             }
             await ac.post("/v1/users/", json=user_data)
@@ -149,7 +161,7 @@ async def test_get_users_with_pagination(app) -> None:
         # Check that at least 2 users with the unique prefix exist in all users
         all_users_response = await ac.get("/v1/users/")
         all_users = all_users_response.json()["items"]
-        matching = [u for u in all_users if unique_prefix in u["name"]]
+        matching = [u for u in all_users if unique_prefix in u["given_name"]]
         assert len(matching) == 5
 
 
@@ -161,9 +173,9 @@ async def test_get_user_by_id(app) -> None:
     ) as ac:
         # Create a user first
         user_data = {
-            "name": "Specific User",
+            "given_name": "Specific",
+            "family_name": "User",
             "email": "specific@example.com",
-            "age": 25,
         }
         create_response = await ac.post("/v1/users/", json=user_data)
         user_id = create_response.json()["id"]
@@ -172,9 +184,9 @@ async def test_get_user_by_id(app) -> None:
         assert response.status_code == 200
 
         data = response.json()
-        assert data["name"] == "Specific User"
+        assert data["given_name"] == "Specific"
+        assert data["family_name"] == "User"
         assert data["email"] == "specific@example.com"
-        assert data["age"] == 25
 
 
 @pytest.mark.asyncio
@@ -196,30 +208,30 @@ async def test_update_user(app) -> None:
         transport=ASGITransport(app=app), base_url="http://test"
     ) as ac:
         data = {
-            "name": "Charlie",
+            "given_name": "Charlie",
+            "family_name": "Smith",
             "email": f"charlie-{uuid.uuid4()}@example.com",
-            "age": 40,
         }
         resp = await ac.post("/v1/users/", json=data)
         user = resp.json()
         uid = user["id"]
         # PATCH: partial update
-        patch_update = {"name": "Charlie Patched"}
+        patch_update = {"given_name": "CharliePatched"}
         resp2 = await ac.patch(f"/v1/users/{uid}", json=patch_update)
         assert resp2.status_code == 200
         updated = resp2.json()
-        assert updated["name"] == "Charlie Patched"
+        assert updated["given_name"] == "CharliePatched"
         # PUT: full update (all fields required)
         put_update = {
-            "name": "Charlie Put",
+            "given_name": "CharliePut",
+            "family_name": "SmithPut",
             "email": f"charlie-put-{uuid.uuid4()}@example.com",
-            "age": 41,
         }
         resp3 = await ac.put(f"/v1/users/{uid}", json=put_update)
         assert resp3.status_code == 200
         updated2 = resp3.json()
-        assert updated2["name"] == "Charlie Put"
-        assert updated2["age"] == 41
+        assert updated2["given_name"] == "CharliePut"
+        assert updated2["family_name"] == "SmithPut"
         assert updated2["email"].startswith("charlie-put-")
 
 
@@ -232,8 +244,16 @@ async def test_update_user_email_conflict(app) -> None:
         transport=ASGITransport(app=app), base_url="http://test"
     ) as ac:
         # Create two users
-        user1_data = {"name": "User 1", "email": f"user1-{unique1}@example.com"}
-        user2_data = {"name": "User 2", "email": f"user2-{unique2}@example.com"}
+        user1_data = {
+            "given_name": "User1",
+            "family_name": "Fam1",
+            "email": f"user1-{unique1}@example.com",
+        }
+        user2_data = {
+            "given_name": "User2",
+            "family_name": "Fam2",
+            "email": f"user2-{unique2}@example.com",
+        }
 
         await ac.post("/v1/users/", json=user1_data)
         create_response = await ac.post("/v1/users/", json=user2_data)
@@ -244,9 +264,9 @@ async def test_update_user_email_conflict(app) -> None:
         response = await ac.put(
             f"/v1/users/{user2_id}",
             json={
-                "name": "User 2",
+                "given_name": "User2",
+                "family_name": "Fam2",
                 "email": user1_data["email"],
-                "age": None,
             },
         )
         # Now expecting 400 for duplicate email (business logic error)
@@ -260,13 +280,13 @@ async def test_update_user_validation(app) -> None:
         transport=ASGITransport(app=app), base_url="http://test"
     ) as ac:
         # Create a user first
-        user_data = {"name": "Test User", "email": "test@example.com"}
+        user_data = {
+            "given_name": "TestUser",
+            "family_name": "FamUser",
+            "email": "test@example.com",
+        }
         create_response = await ac.post("/v1/users/", json=user_data)
         user_id = create_response.json()["id"]
-
-        # Try to update with invalid age
-        response = await ac.put(f"/v1/users/{user_id}", json={"age": -1})
-        assert response.status_code == 422
 
         # Try to update with extra field
         response = await ac.put(f"/v1/users/{user_id}", json={"extra": "field"})
@@ -277,9 +297,9 @@ async def test_update_user_validation(app) -> None:
 async def test_update_nonexistent_user(app) -> None:
     """Should return 404 when updating a non-existent user."""
     update_data = {
-        "name": "New Name",
+        "given_name": "NewGiven",
+        "family_name": "NewFamily",
         "email": "new@example.com",
-        "age": 42,
     }
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
@@ -300,7 +320,11 @@ async def test_delete_user(app) -> None:
         transport=ASGITransport(app=app), base_url="http://test"
     ) as ac:
         # Create a user first
-        user_data = {"name": "To Delete", "email": "delete@example.com"}
+        user_data = {
+            "given_name": "To",
+            "family_name": "Delete",
+            "email": "delete@example.com",
+        }
         create_response = await ac.post("/v1/users/", json=user_data)
         user_id = create_response.json()["id"]
 
@@ -334,7 +358,7 @@ async def test_create_user_validation_error(app) -> None:
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as ac:
-        response = await ac.post("/v1/users/", json={"age": 42})
+        response = await ac.post("/v1/users/", json={})
         assert response.status_code == 422
         error_data = response.json()
         assert "detail" in error_data
@@ -343,7 +367,7 @@ async def test_create_user_validation_error(app) -> None:
 @pytest.mark.asyncio
 async def test_create_user_invalid_email(app) -> None:
     """Should return a validation error for an invalid email address."""
-    user_data = {"name": "Invalid Email User", "email": "not-an-email"}
+    user_data = {"given_name": "Invalid Email User", "email": "not-an-email"}
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as ac:

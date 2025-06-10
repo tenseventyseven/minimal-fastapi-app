@@ -46,11 +46,11 @@ class UserService:
                 ],
             )
         user = UserORM(
-            name=user_data.name,
+            given_name=user_data.given_name,
+            family_name=user_data.family_name,
             email=str(user_data.email),
-            age=user_data.age,
             created_at=datetime.now(),
-            updated_at=datetime.now(),  # NEW
+            updated_at=datetime.now(),
         )
         self.db.add(user)
         try:
@@ -147,11 +147,13 @@ class UserService:
                         }
                     ],
                 )
-        for field, value in update_data.items():
-            object.__setattr__(user, field, value)
-        object.__setattr__(
-            user, "updated_at", datetime.now()
-        )  # always update timestamp
+        if user_data.given_name is not None:
+            user.given_name = user_data.given_name
+        if user_data.family_name is not None:
+            user.family_name = user_data.family_name
+        if user_data.email is not None:
+            user.email = str(user_data.email)
+        user.updated_at = datetime.now()
         try:
             await self.db.commit()
             await self.db.refresh(user)

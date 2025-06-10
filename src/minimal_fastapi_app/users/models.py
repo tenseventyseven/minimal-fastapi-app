@@ -1,7 +1,8 @@
+from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Column, DateTime, Integer, String
-from sqlalchemy.orm import relationship
+from sqlalchemy import DateTime, String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from minimal_fastapi_app.core.db import Base
 
@@ -20,12 +21,14 @@ class UserORM(Base):
 
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(100), nullable=False)
-    email = Column(String(255), unique=True, nullable=False, index=True)
-    age = Column(Integer, nullable=True)
-    created_at = Column(DateTime, nullable=False)
-    updated_at = Column(DateTime, nullable=False)
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    given_name: Mapped[str] = mapped_column(String, nullable=False)
+    family_name: Mapped[str] = mapped_column(String, nullable=False)
+    email: Mapped[str] = mapped_column(
+        String(255), unique=True, nullable=False, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     projects = relationship(
         "ProjectORM",
         secondary="user_project_association",
@@ -34,4 +37,7 @@ class UserORM(Base):
     )
 
     def __repr__(self) -> str:
-        return f"<UserORM(id={self.id}, name={self.name!r}, email={self.email!r})>"
+        return (
+            f"<UserORM(id={self.id}, given_name={self.given_name!r}, "
+            f"family_name={self.family_name!r}, email={self.email!r})>"
+        )

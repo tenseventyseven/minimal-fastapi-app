@@ -13,7 +13,8 @@ async def test_add_user_to_project(app):
     ) as ac:
         # Create user with unique email
         user_data = {
-            "name": "User Project",
+            "given_name": "User Project",
+            "family_name": "Test",
             "email": f"userproj-{uuid.uuid4()}@example.com",
         }
         user_resp = await ac.post("/v1/users/", json=user_data)
@@ -37,7 +38,8 @@ async def test_remove_user_from_project(app):
     ) as ac:
         # Create user and project with unique email and name
         user_data = {
-            "name": "User Remove",
+            "given_name": "User Remove",
+            "family_name": "Test",
             "email": f"userremove-{uuid.uuid4()}@ex.com",
         }
         user_resp = await ac.post("/v1/users/", json=user_data)
@@ -64,7 +66,11 @@ async def test_list_users_in_project(app):
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as ac:
-        user_data = {"name": "User1", "email": f"user1-{uuid.uuid4()}@ex.com"}
+        user_data = {
+            "given_name": "User1",
+            "family_name": "Test",
+            "email": f"user1-{uuid.uuid4()}@ex.com",
+        }
         user_resp = await ac.post("/v1/users/", json=user_data)
         user_id = user_resp.json()["id"]
         project_data = {"name": f"Proj1 {uuid.uuid4()}"}
@@ -82,7 +88,11 @@ async def test_list_projects_for_user(app):
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as ac:
-        user_data = {"name": "User2", "email": f"user2-{uuid.uuid4()}@ex.com"}
+        user_data = {
+            "given_name": "User2",
+            "family_name": "Test",
+            "email": f"user2-{uuid.uuid4()}@ex.com",
+        }
         user_resp = await ac.post("/v1/users/", json=user_data)
         user_id = user_resp.json()["id"]
         project1_name = f"ProjA {uuid.uuid4()}"
