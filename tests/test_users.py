@@ -44,11 +44,8 @@ async def test_create_duplicate_email(app) -> None:
         # Try to create second user with same email
         response = await ac.post("/v1/users/", json=user_data)
         assert response.status_code == 400
-
         error_data = response.json()
-        assert error_data["error"] == "business_error"
-        assert "trace_id" in error_data
-        assert "email" in str(error_data["details"]).lower()
+        assert "already exists" in error_data["detail"].lower()
 
 
 @pytest.mark.asyncio
@@ -247,10 +244,8 @@ async def test_update_user_email_conflict(app) -> None:
             f"/v1/users/{user2_id}", json={"email": user1_data["email"]}
         )
         assert response.status_code == 400
-
         error_data = response.json()
-        assert error_data["error"] == "business_error"
-        assert "email already exists" in error_data["message"]
+        assert "already exists" in error_data["detail"].lower()
 
 
 @pytest.mark.asyncio

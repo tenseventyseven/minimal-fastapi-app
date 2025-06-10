@@ -6,6 +6,7 @@ from sqlalchemy.orm import relationship
 from minimal_fastapi_app.core.db import Base
 
 if TYPE_CHECKING:
+    # For static type checking only.
     pass
 
 

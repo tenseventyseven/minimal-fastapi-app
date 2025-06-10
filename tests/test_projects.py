@@ -30,9 +30,7 @@ async def test_create_duplicate_project(app):
         response = await ac.post("/v1/projects/", json=project_data)
         assert response.status_code == 400
         error_data = response.json()
-        assert error_data["error"] == "business_error"
-        assert "trace_id" in error_data
-        assert "name" in str(error_data["details"]).lower()
+        assert "already exists" in error_data["detail"].lower()
 
 
 @pytest.mark.asyncio

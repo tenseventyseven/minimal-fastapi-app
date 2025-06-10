@@ -63,8 +63,7 @@ async def create_user(
     try:
         user = await user_service.create_user(user_data)
     except BusinessException as exc:
-        # Business logic error (e.g., duplicate email)
-        raise exc
+        raise HTTPException(status_code=400, detail=exc.message)
 
     logger.info(
         "User creation endpoint completed",
@@ -206,7 +205,7 @@ async def update_user(
     except BusinessException as exc:
         if "not found" in exc.message.lower():
             raise HTTPException(status_code=404, detail=exc.message)
-        raise exc
+        raise HTTPException(status_code=400, detail=exc.message)
     logger.info(
         "Update user endpoint completed",
         **enrich_log_fields({"user_id": user.id}, request, user_id=user.id),

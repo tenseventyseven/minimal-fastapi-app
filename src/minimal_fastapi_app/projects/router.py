@@ -56,7 +56,7 @@ async def create_project(
     try:
         project = await project_service.create_project(project_data)
     except BusinessException as exc:
-        raise exc
+        raise HTTPException(status_code=400, detail=exc.message)
     logger.info(
         "Project creation endpoint completed",
         **enrich_log_fields({"project_id": project.id}, request, user_id=None),
