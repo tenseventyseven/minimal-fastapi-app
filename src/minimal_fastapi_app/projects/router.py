@@ -41,7 +41,7 @@ class PaginatedProjectsResponse(BaseModel):
     operation_id="createProject",
     responses={
         201: {"description": "Project created successfully."},
-        400: {"description": "Duplicate name or validation error."},
+        400: {"description": "Duplicate project_id or validation error."},
     },
 )
 async def create_project(
@@ -51,7 +51,7 @@ async def create_project(
 ) -> Project:
     logger.info(
         "Create project endpoint called",
-        **enrich_log_fields({"project_name": project_data.name}, request),
+        **enrich_log_fields({"project_id": project_data.project_id}, request),
     )
     project_service = ProjectService(db)
     try:
@@ -60,7 +60,7 @@ async def create_project(
         raise HTTPException(status_code=400, detail=exc.message)
     logger.info(
         "Project creation endpoint completed",
-        **enrich_log_fields({"project_id": project.id}, request, user_id=None),
+        **enrich_log_fields({"project_id": project.project_id}, request, user_id=None),
     )
     return Project.model_validate(project)
 
@@ -146,7 +146,7 @@ async def get_project(
     operation_id="updateProject",
     responses={
         200: {"description": "Project updated successfully."},
-        400: {"description": "Duplicate name or validation error."},
+        400: {"description": "Duplicate project_id or validation error."},
         404: {"description": "Project not found."},
     },
 )
@@ -194,7 +194,7 @@ async def update_project(
     operation_id="patchProject",
     responses={
         200: {"description": "Project updated successfully."},
-        400: {"description": "Duplicate name or validation error."},
+        400: {"description": "Duplicate project_id or validation error."},
         404: {"description": "Project not found."},
     },
 )

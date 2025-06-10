@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import DateTime, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from minimal_fastapi_app.association_tables import user_project_association
+from minimal_fastapi_app.core.association_tables import user_project_association
 from minimal_fastapi_app.core.db import Base
 
 if TYPE_CHECKING:
@@ -22,6 +22,7 @@ class UserORM(Base):
     - Email and user_id are both unique and both indexed.
     - Linked to projects via user_project_association (many-to-many).
     - created_at is set on creation.
+    - updated_at is set on update.
     """
 
     __tablename__ = "users"

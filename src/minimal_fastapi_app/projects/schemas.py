@@ -10,7 +10,7 @@ class ProjectCreate(BaseModel):
     All fields required except description (optional).
     """
 
-    name: str = Field(..., min_length=1, max_length=100, description="Project name")
+    project_id: str = Field(..., min_length=1, description="Unique project identifier")
     description: Optional[str] = Field(
         None, max_length=255, description="Project description"
     )
@@ -27,8 +27,8 @@ class ProjectInDB(BaseModel):
     Includes internal fields.
     """
 
-    id: int = Field(..., gt=0, description="Project ID")
-    name: str = Field(..., min_length=1, max_length=100, description="Project name")
+    id: int = Field(..., gt=0, description="Project DB ID")
+    project_id: str = Field(..., min_length=1, description="Unique project identifier")
     description: Optional[str] = Field(
         None, max_length=255, description="Project description"
     )
@@ -51,7 +51,7 @@ class Project(ProjectInDB):
         json_schema_extra={
             "example": {
                 "id": 1,
-                "name": "Project Alpha",
+                "project_id": "project-alpha",
                 "description": "A test project",
                 "created_at": "2025-06-07T18:30:00.123456",
                 "updated_at": "2025-06-07T18:30:00.123456",
@@ -66,8 +66,8 @@ class ProjectUpdate(BaseModel):
     All fields optional.
     """
 
-    name: Optional[str] = Field(
-        None, min_length=1, max_length=100, description="Project name"
+    project_id: Optional[str] = Field(
+        None, min_length=1, description="Unique project identifier"
     )
     description: Optional[str] = Field(
         None, max_length=255, description="Project description"

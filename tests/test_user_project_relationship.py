@@ -20,8 +20,8 @@ async def test_add_user_to_project(app):
         }
         user_resp = await ac.post("/v1/users/", json=user_data)
         user_id = user_resp.json()["user_id"]
-        # Create project with unique name
-        project_data = {"name": f"Project Beta {uuid.uuid4()}"}
+        # Create project with unique project_id
+        project_data = {"project_id": f"Project Beta {uuid.uuid4()}"}
         project_resp = await ac.post("/v1/projects/", json=project_data)
         project_id = project_resp.json()["id"]
         # Add user to project
@@ -37,7 +37,7 @@ async def test_remove_user_from_project(app):
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as ac:
-        # Create user and project with unique email and name
+        # Create user and project with unique email and project_id
         user_data = {
             "user_id": f"userremove-{uuid.uuid4()}",
             "given_name": "User Remove",
@@ -46,7 +46,7 @@ async def test_remove_user_from_project(app):
         }
         user_resp = await ac.post("/v1/users/", json=user_data)
         user_id = user_resp.json()["user_id"]
-        project_data = {"name": f"ProjRemove {uuid.uuid4()}"}
+        project_data = {"project_id": f"ProjRemove {uuid.uuid4()}"}
         project_resp = await ac.post("/v1/projects/", json=project_data)
         project_id = project_resp.json()["id"]
         # Add user to project
@@ -76,7 +76,7 @@ async def test_list_users_in_project(app):
         }
         user_resp = await ac.post("/v1/users/", json=user_data)
         user_id = user_resp.json()["user_id"]
-        project_data = {"name": f"Proj1 {uuid.uuid4()}"}
+        project_data = {"project_id": f"Proj1 {uuid.uuid4()}"}
         project_resp = await ac.post("/v1/projects/", json=project_data)
         project_id = project_resp.json()["id"]
         await ac.post(f"/v1/projects/{project_id}/users/{user_id}")
@@ -99,17 +99,21 @@ async def test_list_projects_for_user(app):
         }
         user_resp = await ac.post("/v1/users/", json=user_data)
         user_id = user_resp.json()["user_id"]
-        project1_name = f"ProjA {uuid.uuid4()}"
-        project2_name = f"ProjB {uuid.uuid4()}"
-        project1 = (await ac.post("/v1/projects/", json={"name": project1_name})).json()
-        project2 = (await ac.post("/v1/projects/", json={"name": project2_name})).json()
+        project1_id = f"ProjA {uuid.uuid4()}"
+        project2_id = f"ProjB {uuid.uuid4()}"
+        project1 = (
+            await ac.post("/v1/projects/", json={"project_id": project1_id})
+        ).json()
+        project2 = (
+            await ac.post("/v1/projects/", json={"project_id": project2_id})
+        ).json()
         await ac.post(f"/v1/projects/{project1['id']}/users/{user_id}")
         await ac.post(f"/v1/projects/{project2['id']}/users/{user_id}")
         resp = await ac.get(f"/v1/projects/user/{user_id}/projects")
         assert resp.status_code == 200
         projects = resp.json()
-        project_names = [p["name"] for p in projects]
-        assert project1_name in project_names and project2_name in project_names
+        project_ids = [p["project_id"] for p in projects]
+        assert project1_id in project_ids and project2_id in project_ids
 
 
 @pytest.mark.asyncio

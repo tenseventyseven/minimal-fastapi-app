@@ -1,9 +1,9 @@
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, String
+from sqlalchemy import DateTime, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from minimal_fastapi_app.association_tables import user_project_association
+from minimal_fastapi_app.core.association_tables import user_project_association
 from minimal_fastapi_app.core.db import Base
 
 if TYPE_CHECKING:
@@ -13,16 +13,17 @@ if TYPE_CHECKING:
 class ProjectORM(Base):
     """
     SQLAlchemy ORM for projects table.
-    - Project name is unique.
+    - project_id is unique (string, indexed).
     - Linked to users via user_project_association (many-to-many).
     - created_at is set on creation.
+    - updated_at is set on update.
     """
 
     __tablename__ = "projects"
 
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    name: Mapped[str] = mapped_column(
-        String(100), unique=True, nullable=False, index=True
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    project_id: Mapped[str] = mapped_column(
+        String, unique=True, nullable=False, index=True
     )
     description: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_at: Mapped[DateTime] = mapped_column(DateTime, nullable=False)
@@ -34,4 +35,4 @@ class ProjectORM(Base):
     )
 
     def __repr__(self) -> str:
-        return f"<ProjectORM(id={self.id}, name={self.name!r})>"
+        return f"<ProjectORM(id={self.id}, project_id={self.project_id!r})>"

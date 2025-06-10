@@ -29,30 +29,30 @@ class ProjectService:
     async def create_project(self, project_data: ProjectCreate) -> ProjectInDB:
         """
         Create a new project in the database.
-        Checks for duplicate project name before creation.
-        Raises BusinessException if name already exists.
+        Checks for duplicate project ID before creation.
+        Raises BusinessException if ID already exists.
         """
         logger.debug(
             "Attempting to create project",
             project_data=project_data.model_dump(),
         )
-        # Check for duplicate name to enforce uniqueness constraint
+        # Check for duplicate ID to enforce uniqueness constraint
         existing = await self.db.execute(
-            select(ProjectORM).where(ProjectORM.name == project_data.name)
+            select(ProjectORM).where(ProjectORM.project_id == project_data.project_id)
         )
         if existing.scalar_one_or_none():
             raise BusinessException(
-                message="A project with this name already exists",
+                message="A project with this project_id already exists",
                 details=[
                     {
-                        "field": "name",
-                        "message": "Project name is already in use",
-                        "code": "name_exists",
+                        "field": "project_id",
+                        "message": "Project ID is already in use",
+                        "code": "project_id_exists",
                     }
                 ],
             )
         project = ProjectORM(
-            name=project_data.name,
+            project_id=project_data.project_id,
             description=project_data.description,
             created_at=datetime.now(),
             updated_at=datetime.now(),  # NEW
@@ -68,16 +68,16 @@ class ProjectService:
         except IntegrityError:
             await self.db.rollback()
             logger.warning(
-                "Failed to create project due to duplicate name",
-                name=project_data.name,
+                "Failed to create project due to duplicate project_id",
+                project_id=project_data.project_id,
             )
             raise BusinessException(
-                message="A project with this name already exists",
+                message="A project with this project_id already exists",
                 details=[
                     {
-                        "field": "name",
-                        "message": "Project name is already in use",
-                        "code": "name_exists",
+                        "field": "project_id",
+                        "message": "Project ID is already in use",
+                        "code": "project_id_exists",
                     }
                 ],
             )
@@ -193,7 +193,7 @@ class ProjectService:
     ) -> ProjectInDB:
         """
         Update an existing project's information by ID.
-        Raises BusinessException if project not found or name is duplicate.
+        Raises BusinessException if project not found or ID is duplicate.
         """
         logger.debug(
             "Attempting to update project",
@@ -214,26 +214,26 @@ class ProjectService:
                 details=[],
             )
         update_data = project_data.model_dump(exclude_unset=True)
-        # Check for duplicate name (excluding self)
-        if "name" in update_data:
+        # Check for duplicate ID (excluding self)
+        if "project_id" in update_data:
             existing = await self.db.execute(
                 select(ProjectORM).where(
-                    (ProjectORM.name == update_data["name"])
+                    (ProjectORM.project_id == update_data["project_id"])
                     & (ProjectORM.id != project_id)
                 )
             )
             if existing.scalar_one_or_none():
                 logger.warning(
-                    "Failed to update project due to duplicate name",
-                    name=update_data["name"],
+                    "Failed to update project due to duplicate project_id",
+                    project_id=update_data["project_id"],
                 )
                 raise BusinessException(
-                    message="A project with this name already exists",
+                    message="A project with this project_id already exists",
                     details=[
                         {
-                            "field": "name",
-                            "message": "Project name is already in use",
-                            "code": "name_exists",
+                            "field": "project_id",
+                            "message": "Project ID is already in use",
+                            "code": "project_id_exists",
                         }
                     ],
                 )
@@ -251,16 +251,16 @@ class ProjectService:
         except IntegrityError:
             await self.db.rollback()
             logger.warning(
-                "Failed to update project due to duplicate name",
-                name=update_data.get("name"),
+                "Failed to update project due to duplicate project_id",
+                project_id=update_data.get("project_id"),
             )
             raise BusinessException(
-                message="A project with this name already exists",
+                message="A project with this project_id already exists",
                 details=[
                     {
-                        "field": "name",
-                        "message": "Project name is already in use",
-                        "code": "name_exists",
+                        "field": "project_id",
+                        "message": "Project ID is already in use",
+                        "code": "project_id_exists",
                     }
                 ],
             )
