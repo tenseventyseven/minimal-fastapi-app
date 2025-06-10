@@ -1,6 +1,8 @@
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from minimal_fastapi_app.core.db import get_db_session
 from minimal_fastapi_app.core.exceptions import BusinessException, enrich_log_fields
 from minimal_fastapi_app.core.logging import get_logger
 from minimal_fastapi_app.users.schemas import User, UserCreate, UserUpdate
@@ -40,7 +42,9 @@ class PaginatedUsersResponse(BaseModel):
         400: {"description": "Duplicate email or validation error."},
     },
 )
-async def create_user(user_data: UserCreate, request: Request) -> User:
+async def create_user(
+    user_data: UserCreate, request: Request, db: AsyncSession = Depends(get_db_session)
+) -> User:
     """Create a new user and return the created user object.
 
     Args:
@@ -55,12 +59,11 @@ async def create_user(user_data: UserCreate, request: Request) -> User:
         "Create user endpoint called",
         **enrich_log_fields({"user_email": user_data.email}, request),
     )
-    user_service = UserService()
+    user_service = UserService(db)
     try:
         user = await user_service.create_user(user_data)
     except BusinessException as exc:
-        # Business logic error (e.g., duplicate email)
-        raise exc
+        raise HTTPException(status_code=400, detail=exc.message)
 
     logger.info(
         "User creation endpoint completed",
@@ -85,6 +88,7 @@ async def get_users(
     request: Request,
     skip: int = Query(0, ge=0, description="Number of users to skip"),
     limit: int = Query(100, ge=1, le=100, description="Number of users to return"),
+    db: AsyncSession = Depends(get_db_session),
 ) -> PaginatedUsersResponse:
     """Get all users with pagination and return a paginated response object.
 
@@ -100,7 +104,7 @@ async def get_users(
         "Get users endpoint called",
         **enrich_log_fields({"skip": skip, "limit": limit}, request),
     )
-    user_service = UserService()
+    user_service = UserService(db)
     users, total = await user_service.get_users(skip=skip, limit=limit)
     user_responses = [User.model_validate(user) for user in users]
     logger.info(
@@ -127,7 +131,9 @@ async def get_users(
         404: {"description": "User not found."},
     },
 )
-async def get_user(user_id: int, request: Request) -> User:
+async def get_user(
+    user_id: int, request: Request, db: AsyncSession = Depends(get_db_session)
+) -> User:
     """Get a specific user by ID.
 
     Args:
@@ -144,7 +150,7 @@ async def get_user(user_id: int, request: Request) -> User:
         "Get user endpoint called",
         **enrich_log_fields({"user_id": user_id}, request, user_id=user_id),
     )
-    user_service = UserService()
+    user_service = UserService(db)
     try:
         user = await user_service.get_user_by_id(user_id)
     except BusinessException as exc:
@@ -170,7 +176,12 @@ async def get_user(user_id: int, request: Request) -> User:
         404: {"description": "User not found."},
     },
 )
-async def update_user(user_id: int, user_data: UserUpdate, request: Request) -> User:
+async def update_user(
+    user_id: int,
+    user_data: UserUpdate,
+    request: Request,
+    db: AsyncSession = Depends(get_db_session),
+) -> User:
     """Update a user by ID.
 
     Args:
@@ -188,13 +199,13 @@ async def update_user(user_id: int, user_data: UserUpdate, request: Request) -> 
         "Update user endpoint called",
         **enrich_log_fields({"user_id": user_id}, request, user_id=user_id),
     )
-    user_service = UserService()
+    user_service = UserService(db)
     try:
         user = await user_service.update_user(user_id, user_data)
     except BusinessException as exc:
         if "not found" in exc.message.lower():
             raise HTTPException(status_code=404, detail=exc.message)
-        raise exc
+        raise HTTPException(status_code=400, detail=exc.message)
     logger.info(
         "Update user endpoint completed",
         **enrich_log_fields({"user_id": user.id}, request, user_id=user.id),
@@ -214,7 +225,9 @@ async def update_user(user_id: int, user_data: UserUpdate, request: Request) -> 
         404: {"description": "User not found."},
     },
 )
-async def delete_user(user_id: int, request: Request) -> None:
+async def delete_user(
+    user_id: int, request: Request, db: AsyncSession = Depends(get_db_session)
+) -> None:
     """Delete a user by ID.
 
     Args:
@@ -228,7 +241,7 @@ async def delete_user(user_id: int, request: Request) -> None:
         "Delete user endpoint called",
         **enrich_log_fields({"user_id": user_id}, request, user_id=user_id),
     )
-    user_service = UserService()
+    user_service = UserService(db)
     try:
         await user_service.delete_user(user_id)
     except BusinessException as exc:

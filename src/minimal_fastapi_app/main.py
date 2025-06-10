@@ -1,3 +1,4 @@
+import os
 from contextlib import asynccontextmanager
 from datetime import datetime
 
@@ -18,11 +19,9 @@ from minimal_fastapi_app.core.exceptions import (
 from minimal_fastapi_app.core.logging import configure_logging, get_logger
 from minimal_fastapi_app.core.middleware import RequestLoggingMiddleware
 from minimal_fastapi_app.core.models import HealthCheck, StatusResponse
-from minimal_fastapi_app.projects.models import Base as ProjectBase
 from minimal_fastapi_app.projects.router import (
     router as projects_router,
 )
-from minimal_fastapi_app.users.models import Base as UserBase
 from minimal_fastapi_app.users.router import (
     router as users_router,
 )
@@ -40,20 +39,13 @@ trace.set_tracer_provider(TracerProvider())
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan events: startup and shutdown."""
-    logger.info(
-        "Application starting up",
-        app_name=settings.app_name,
-        version=settings.app_version,
-        environment=settings.environment,
-        debug=settings.debug,
-    )
+    # Only create tables if not running under pytest (let test fixture handle it)
+    if not os.environ.get("PYTEST_CURRENT_TEST"):
+        engine = get_engine()
+        async with engine.begin() as conn:
+            from minimal_fastapi_app.core.db import Base
 
-    # Create database tables on startup (for demo/dev only; use migrations in prod)
-    engine = get_engine()
-    async with engine.begin() as conn:
-        await conn.run_sync(UserBase.metadata.create_all)
-        await conn.run_sync(ProjectBase.metadata.create_all)
+            await conn.run_sync(Base.metadata.create_all)
 
     yield
 

@@ -1,6 +1,8 @@
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from minimal_fastapi_app.core.db import get_db_session
 from minimal_fastapi_app.core.exceptions import BusinessException, enrich_log_fields
 from minimal_fastapi_app.core.logging import get_logger
 from minimal_fastapi_app.projects.models import ProjectORM
@@ -41,16 +43,20 @@ class PaginatedProjectsResponse(BaseModel):
         400: {"description": "Duplicate name or validation error."},
     },
 )
-async def create_project(project_data: ProjectCreate, request: Request) -> Project:
+async def create_project(
+    project_data: ProjectCreate,
+    request: Request,
+    db: AsyncSession = Depends(get_db_session),
+) -> Project:
     logger.info(
         "Create project endpoint called",
         **enrich_log_fields({"project_name": project_data.name}, request),
     )
-    project_service = ProjectService()
+    project_service = ProjectService(db)
     try:
         project = await project_service.create_project(project_data)
     except BusinessException as exc:
-        raise exc
+        raise HTTPException(status_code=400, detail=exc.message)
     logger.info(
         "Project creation endpoint completed",
         **enrich_log_fields({"project_id": project.id}, request, user_id=None),
@@ -73,12 +79,13 @@ async def get_projects(
     request: Request,
     skip: int = Query(0, ge=0, description="Number of projects to skip"),
     limit: int = Query(100, ge=1, le=100, description="Number of projects to return"),
+    db: AsyncSession = Depends(get_db_session),
 ) -> PaginatedProjectsResponse:
     logger.info(
         "Get projects endpoint called",
         **enrich_log_fields({"skip": skip, "limit": limit}, request),
     )
-    project_service = ProjectService()
+    project_service = ProjectService(db)
     projects, total = await project_service.get_projects(skip=skip, limit=limit)
     project_responses = [Project.model_validate(project) for project in projects]
     logger.info(
@@ -105,12 +112,16 @@ async def get_projects(
         404: {"description": "Project not found."},
     },
 )
-async def get_project(project_id: int, request: Request) -> Project:
+async def get_project(
+    project_id: int,
+    request: Request,
+    db: AsyncSession = Depends(get_db_session),
+) -> Project:
     logger.info(
         "Get project endpoint called",
         **enrich_log_fields({"project_id": project_id}, request, user_id=None),
     )
-    project_service = ProjectService()
+    project_service = ProjectService(db)
     try:
         project = await project_service.get_project_by_id(project_id)
     except BusinessException as exc:
@@ -139,20 +150,17 @@ async def update_project(
     project_id: int,
     project_data: ProjectCreate,
     request: Request,
+    db: AsyncSession = Depends(get_db_session),
 ) -> Project:
     logger.info(
         "Update project endpoint called",
         **enrich_log_fields({"project_id": project_id}, request, user_id=None),
     )
-    project_service = ProjectService()
+    project_service = ProjectService(db)
     try:
-        # For minimal example, reuse get_project_by_id (real app: add update logic)
-        project = await project_service.get_project_by_id(project_id)
-        # Simulate update by replacing fields (real app: implement update in service)
-        project.name = project_data.name
-        project.description = project_data.description
+        project = await project_service.update_project(project_id, project_data)
         logger.info(
-            "Project updated (simulated)",
+            "Project updated",
             **enrich_log_fields({"project_id": project_id}, request, user_id=None),
         )
     except BusinessException as exc:
@@ -172,18 +180,20 @@ async def update_project(
         404: {"description": "Project not found."},
     },
 )
-async def delete_project(project_id: int, request: Request) -> None:
+async def delete_project(
+    project_id: int,
+    request: Request,
+    db: AsyncSession = Depends(get_db_session),
+) -> None:
     logger.info(
         "Delete project endpoint called",
         **enrich_log_fields({"project_id": project_id}, request, user_id=None),
     )
-    project_service = ProjectService()
+    project_service = ProjectService(db)
     try:
-        # For minimal example, just check existence.
-        # (real app: implement delete in service)
-        await project_service.get_project_by_id(project_id)
+        await project_service.delete_project(project_id)
         logger.info(
-            "Project deleted (simulated)",
+            "Project deleted",
             **enrich_log_fields({"project_id": project_id}, request, user_id=None),
         )
     except BusinessException as exc:
@@ -196,12 +206,17 @@ async def delete_project(project_id: int, request: Request) -> None:
     tags=["projects"],
     description="Add a user to a project.",
 )
-async def add_user_to_project(project_id: int, user_id: int, request: Request) -> None:
+async def add_user_to_project(
+    project_id: int,
+    user_id: int,
+    request: Request,
+    db: AsyncSession = Depends(get_db_session),
+) -> None:
     logger.info(
         "Add user to project endpoint called",
         **enrich_log_fields({"project_id": project_id, "user_id": user_id}, request),
     )
-    project_service = ProjectService()
+    project_service = ProjectService(db)
     try:
         await project_service.add_user_to_project(user_id, project_id)
     except BusinessException as exc:
@@ -219,13 +234,16 @@ async def add_user_to_project(project_id: int, user_id: int, request: Request) -
     description="Remove a user from a project.",
 )
 async def remove_user_from_project(
-    project_id: int, user_id: int, request: Request
+    project_id: int,
+    user_id: int,
+    request: Request,
+    db: AsyncSession = Depends(get_db_session),
 ) -> None:
     logger.info(
         "Remove user from project endpoint called",
         **enrich_log_fields({"project_id": project_id, "user_id": user_id}, request),
     )
-    project_service = ProjectService()
+    project_service = ProjectService(db)
     try:
         await project_service.remove_user_from_project(user_id, project_id)
     except BusinessException as exc:
@@ -241,20 +259,22 @@ async def remove_user_from_project(
     tags=["projects"],
     description="List users in a project.",
 )
-async def list_users_in_project(project_id: int, request: Request):
+async def list_users_in_project(
+    project_id: int,
+    request: Request,
+    db: AsyncSession = Depends(get_db_session),
+):
     logger.info(
         "List users in project endpoint called",
         **enrich_log_fields({"project_id": project_id}, request),
     )
-    project_service = ProjectService()
-    async with project_service.async_session_factory() as session:
-        db_project = await session.get(ProjectORM, project_id)
-        if not db_project:
-            raise HTTPException(
-                status_code=404, detail=f"Project with id '{project_id}' not found"
-            )
-        users = db_project.users
-        return [User.model_validate(u) for u in users]
+    db_project = await db.get(ProjectORM, project_id)
+    if not db_project:
+        raise HTTPException(
+            status_code=404, detail=f"Project with id '{project_id}' not found"
+        )
+    users = db_project.users
+    return [User.model_validate(u) for u in users]
 
 
 @router.get(
@@ -262,17 +282,19 @@ async def list_users_in_project(project_id: int, request: Request):
     tags=["projects"],
     description="List projects for a user.",
 )
-async def list_projects_for_user(user_id: int, request: Request):
+async def list_projects_for_user(
+    user_id: int,
+    request: Request,
+    db: AsyncSession = Depends(get_db_session),
+):
     logger.info(
         "List projects for user endpoint called",
         **enrich_log_fields({"user_id": user_id}, request),
     )
-    project_service = ProjectService()
-    async with project_service.async_session_factory() as session:
-        user = await session.get(UserORM, user_id)
-        if not user:
-            raise HTTPException(
-                status_code=404, detail=f"User with id '{user_id}' not found"
-            )
-        projects = user.projects
-        return [Project.model_validate(p) for p in projects]
+    user = await db.get(UserORM, user_id)
+    if not user:
+        raise HTTPException(
+            status_code=404, detail=f"User with id '{user_id}' not found"
+        )
+    projects = user.projects
+    return [Project.model_validate(p) for p in projects]

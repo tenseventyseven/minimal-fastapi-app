@@ -1,7 +1,13 @@
+from typing import TYPE_CHECKING
+
 from sqlalchemy import Column, DateTime, Integer, String
 from sqlalchemy.orm import relationship
 
 from minimal_fastapi_app.core.db import Base
+
+if TYPE_CHECKING:
+    # For static type checking only.
+    pass
 
 
 class UserORM(Base):
@@ -25,3 +31,6 @@ class UserORM(Base):
         back_populates="users",
         lazy="selectin",
     )
+
+    def __repr__(self) -> str:
+        return f"<UserORM(id={self.id}, name={self.name!r}, email={self.email!r})>"

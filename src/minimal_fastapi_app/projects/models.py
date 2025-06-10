@@ -1,9 +1,13 @@
+from typing import TYPE_CHECKING
+
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Table
 from sqlalchemy.orm import relationship
 
 from minimal_fastapi_app.core.db import Base
 
-# Only SQLAlchemy model and association table here. No Pydantic schemas.
+if TYPE_CHECKING:
+    # For static type checking only.
+    pass
 
 
 # Association table for many-to-many relationship
@@ -35,3 +39,6 @@ class ProjectORM(Base):
         back_populates="projects",
         lazy="selectin",
     )
+
+    def __repr__(self) -> str:
+        return f"<ProjectORM(id={self.id}, name={self.name!r})>"

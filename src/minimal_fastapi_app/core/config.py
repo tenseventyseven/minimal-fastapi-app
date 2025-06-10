@@ -1,5 +1,5 @@
 import json
-from functools import lru_cache
+import os
 from typing import Any, Literal
 
 from pydantic import Field, field_validator
@@ -38,7 +38,8 @@ class Settings(BaseSettings):
 
     # Database settings (for future use)
     database_url: str = Field(
-        default="sqlite+aiosqlite:///./app.db", description="Database connection URL"
+        default=("postgresql+asyncpg://postgres:postgres@db:5432/postgres"),
+        description="Database connection URL",
     )
 
     # Logging settings
@@ -90,8 +91,6 @@ class Settings(BaseSettings):
     @field_validator("secret_key")
     @classmethod
     def validate_secret_key(cls, v, info):
-        import os
-
         env = os.getenv("ENVIRONMENT", info.data.get("environment", "development"))
         if env == "production" and v == "your-secret-key-change-this-in-production":
             raise ValueError("SECRET_KEY must be set to a secure value in production.")
@@ -100,7 +99,6 @@ class Settings(BaseSettings):
         return v
 
 
-@lru_cache(maxsize=1)
 def get_settings() -> Settings:
-    """Return a cached Settings instance, always using current env vars."""
+    """Return a Settings instance, always using current env vars."""
     return Settings()
