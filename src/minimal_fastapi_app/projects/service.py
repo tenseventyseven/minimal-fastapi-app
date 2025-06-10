@@ -123,7 +123,7 @@ class ProjectService:
         logger.info("Projects fetched", count=len(projects))
         return [ProjectInDB.model_validate(p) for p in projects], int(total or 0)
 
-    async def add_user_to_project(self, user_id: int, project_id: int) -> None:
+    async def add_user_to_project(self, user_id: str, project_id: int) -> None:
         """
         Add a user to a project (many-to-many relationship).
         Raises BusinessException if user or project not found.
@@ -133,7 +133,8 @@ class ProjectService:
             user_id=user_id,
             project_id=project_id,
         )
-        user = await self.db.get(UserORM, user_id)
+        user = await self.db.execute(select(UserORM).where(UserORM.user_id == user_id))
+        user = user.scalar_one_or_none()
         project = await self.db.get(ProjectORM, project_id)
         if not user or not project:
             logger.error(
@@ -151,7 +152,7 @@ class ProjectService:
                 project_id=project_id,
             )
 
-    async def remove_user_from_project(self, user_id: int, project_id: int) -> None:
+    async def remove_user_from_project(self, user_id: str, project_id: int) -> None:
         """
         Remove a user from a project (many-to-many relationship).
         Raises BusinessException if user or project not found.
@@ -161,7 +162,8 @@ class ProjectService:
             user_id=user_id,
             project_id=project_id,
         )
-        user = await self.db.get(UserORM, user_id)
+        user = await self.db.execute(select(UserORM).where(UserORM.user_id == user_id))
+        user = user.scalar_one_or_none()
         project = await self.db.get(ProjectORM, project_id)
         if not user or not project:
             logger.error(

@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from minimal_fastapi_app.core.db import get_db_session
@@ -270,7 +271,7 @@ async def delete_project(
 )
 async def add_user_to_project(
     project_id: int,
-    user_id: int,
+    user_id: str,
     request: Request,
     db: AsyncSession = Depends(get_db_session),
 ) -> None:
@@ -297,7 +298,7 @@ async def add_user_to_project(
 )
 async def remove_user_from_project(
     project_id: int,
-    user_id: int,
+    user_id: str,
     request: Request,
     db: AsyncSession = Depends(get_db_session),
 ) -> None:
@@ -345,7 +346,7 @@ async def list_users_in_project(
     description="List projects for a user.",
 )
 async def list_projects_for_user(
-    user_id: int,
+    user_id: str,
     request: Request,
     db: AsyncSession = Depends(get_db_session),
 ):
@@ -353,10 +354,11 @@ async def list_projects_for_user(
         "List projects for user endpoint called",
         **enrich_log_fields({"user_id": user_id}, request),
     )
-    user = await db.get(UserORM, user_id)
+    user = await db.execute(select(UserORM).where(UserORM.user_id == user_id))
+    user = user.scalar_one_or_none()
     if not user:
         raise HTTPException(
-            status_code=404, detail=f"User with id '{user_id}' not found"
+            status_code=404, detail=f"User with user_id '{user_id}' not found"
         )
     projects = user.projects
     return [Project.model_validate(p) for p in projects]

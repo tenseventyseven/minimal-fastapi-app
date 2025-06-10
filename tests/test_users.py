@@ -9,6 +9,7 @@ async def test_create_user(client: AsyncClient) -> None:
     """Should create a user and return correct fields."""
     unique_email = f"john-{uuid.uuid4()}@example.com"
     user_data = {
+        "user_id": f"user-{uuid.uuid4()}",
         "given_name": "John",
         "family_name": "Doe",
         "email": unique_email,
@@ -34,6 +35,7 @@ async def test_create_duplicate_email(app) -> None:
     ) as ac:
         email = f"bob-{uuid.uuid4()}@example.com"
         data = {
+            "user_id": f"bob-{uuid.uuid4()}",
             "given_name": "Bob",
             "family_name": "Smith",
             "email": email,
@@ -48,6 +50,7 @@ async def test_create_duplicate_email(app) -> None:
 async def test_create_user_without_age(app) -> None:
     """Should create a user without age and set age to None."""
     user_data = {
+        "user_id": f"jane-{uuid.uuid4()}",
         "given_name": "Jane",
         "family_name": "Doe",
         "email": "jane@example.com",
@@ -69,6 +72,7 @@ async def test_create_user_with_whitespace(app) -> None:
     """Should trim whitespace from user name."""
     unique_email = f"whitespace-{uuid.uuid4()}@example.com"
     user_data = {
+        "user_id": f"whitespace-{uuid.uuid4()}",
         "given_name": "  John  ",
         "family_name": "  Doe  ",
         "email": unique_email,
@@ -144,6 +148,7 @@ async def test_get_users_with_pagination(app) -> None:
         # Create multiple users
         for i in range(5):
             user_data = {
+                "user_id": f"User{unique_prefix}-{i}",
                 "given_name": f"User{unique_prefix}-{i}",
                 "family_name": f"Fam{unique_prefix}-{i}",
                 "email": f"user{unique_prefix}-{i}@example.com",
@@ -173,12 +178,13 @@ async def test_get_user_by_id(app) -> None:
     ) as ac:
         # Create a user first
         user_data = {
+            "user_id": f"specific-{uuid.uuid4()}",
             "given_name": "Specific",
             "family_name": "User",
             "email": "specific@example.com",
         }
         create_response = await ac.post("/v1/users/", json=user_data)
-        user_id = create_response.json()["id"]
+        user_id = create_response.json()["user_id"]
 
         response = await ac.get(f"/v1/users/{user_id}")
         assert response.status_code == 200
@@ -208,16 +214,17 @@ async def test_update_user(app) -> None:
         transport=ASGITransport(app=app), base_url="http://test"
     ) as ac:
         data = {
+            "user_id": f"charlie-{uuid.uuid4()}",
             "given_name": "Charlie",
             "family_name": "Smith",
             "email": f"charlie-{uuid.uuid4()}@example.com",
         }
         resp = await ac.post("/v1/users/", json=data)
         user = resp.json()
-        uid = user["id"]
+        user_id = user["user_id"]
         # PATCH: partial update
         patch_update = {"given_name": "CharliePatched"}
-        resp2 = await ac.patch(f"/v1/users/{uid}", json=patch_update)
+        resp2 = await ac.patch(f"/v1/users/{user_id}", json=patch_update)
         assert resp2.status_code == 200
         updated = resp2.json()
         assert updated["given_name"] == "CharliePatched"
@@ -227,7 +234,7 @@ async def test_update_user(app) -> None:
             "family_name": "SmithPut",
             "email": f"charlie-put-{uuid.uuid4()}@example.com",
         }
-        resp3 = await ac.put(f"/v1/users/{uid}", json=put_update)
+        resp3 = await ac.put(f"/v1/users/{user_id}", json=put_update)
         assert resp3.status_code == 200
         updated2 = resp3.json()
         assert updated2["given_name"] == "CharliePut"
@@ -245,11 +252,13 @@ async def test_update_user_email_conflict(app) -> None:
     ) as ac:
         # Create two users
         user1_data = {
+            "user_id": f"user1-{unique1}",
             "given_name": "User1",
             "family_name": "Fam1",
             "email": f"user1-{unique1}@example.com",
         }
         user2_data = {
+            "user_id": f"user2-{unique2}",
             "given_name": "User2",
             "family_name": "Fam2",
             "email": f"user2-{unique2}@example.com",
@@ -257,7 +266,7 @@ async def test_update_user_email_conflict(app) -> None:
 
         await ac.post("/v1/users/", json=user1_data)
         create_response = await ac.post("/v1/users/", json=user2_data)
-        user2_id = create_response.json()["id"]
+        user2_id = create_response.json()["user_id"]
 
         # Try to update user2 with user1's email
         # PUT requires all fields
@@ -281,12 +290,13 @@ async def test_update_user_validation(app) -> None:
     ) as ac:
         # Create a user first
         user_data = {
+            "user_id": f"testuser-{uuid.uuid4()}",
             "given_name": "TestUser",
             "family_name": "FamUser",
             "email": "test@example.com",
         }
         create_response = await ac.post("/v1/users/", json=user_data)
-        user_id = create_response.json()["id"]
+        user_id = create_response.json()["user_id"]
 
         # Try to update with extra field
         response = await ac.put(f"/v1/users/{user_id}", json={"extra": "field"})
@@ -304,10 +314,10 @@ async def test_update_nonexistent_user(app) -> None:
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as ac:
-        response = await ac.put("/v1/users/999", json=update_data)
+        response = await ac.put("/v1/users/nonexistent-user-id", json=update_data)
         # Now expecting 404 only if validation passes.
         # Otherwise 422 for missing required fields.
-        # Since user 999 does not exist but data is valid, expect 404
+        # Since user_id does not exist but data is valid, expect 404
         assert response.status_code == 404
         error_data = response.json()
         assert "detail" in error_data
@@ -321,12 +331,13 @@ async def test_delete_user(app) -> None:
     ) as ac:
         # Create a user first
         user_data = {
+            "user_id": f"delete-{uuid.uuid4()}",
             "given_name": "To",
             "family_name": "Delete",
             "email": "delete@example.com",
         }
         create_response = await ac.post("/v1/users/", json=user_data)
-        user_id = create_response.json()["id"]
+        user_id = create_response.json()["user_id"]
 
         # Delete user
         response = await ac.delete(f"/v1/users/{user_id}")

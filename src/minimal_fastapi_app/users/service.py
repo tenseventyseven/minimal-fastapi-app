@@ -46,6 +46,7 @@ class UserService:
                 ],
             )
         user = UserORM(
+            user_id=user_data.user_id,
             given_name=user_data.given_name,
             family_name=user_data.family_name,
             email=str(user_data.email),
@@ -65,24 +66,27 @@ class UserService:
             raise
         return UserInDB.model_validate(user)
 
-    async def get_user_by_id(self, user_id: int) -> UserInDB:
+    async def get_user_by_id(self, user_id: str) -> UserInDB:
         """
-        Retrieve a user by their unique ID.
-        Raises BusinessException if user is not found.
+        Retrieve a user by their unique user_id (string).
         """
-        logger.debug("Fetching user by ID", user_id=user_id)
-        result = await self.db.execute(select(UserORM).where(UserORM.id == user_id))
+        logger.debug("Fetching user by user_id", user_id=user_id)
+        result = await self.db.execute(
+            select(UserORM).where(UserORM.user_id == user_id)
+        )
         user = result.scalar_one_or_none()
         if not user:
-            logger.error(
-                "User not found",
-                user_id=user_id,
-            )
             raise BusinessException(
-                message=f"User with id '{user_id}' not found",
-                details=[],
+                message=f"User with user_id '{user_id}' not found",
+                details=[
+                    {
+                        "field": "user_id",
+                        "message": "User not found",
+                        "code": "not_found",
+                    }
+                ],
             )
-        logger.info("User fetched successfully", user_id=user.id)
+        logger.info("User fetched successfully", user_id=user.user_id)
         return UserInDB.model_validate(user)
 
     async def get_users(
@@ -103,7 +107,7 @@ class UserService:
         logger.info("Users fetched", count=len(users))
         return [UserInDB.model_validate(u) for u in users], int(total or 0)
 
-    async def update_user(self, user_id: int, user_data: UserUpdate) -> UserInDB:
+    async def update_user(self, user_id: str, user_data: UserUpdate) -> UserInDB:
         """
         Update an existing user's information by ID.
         Raises BusinessException if user not found or email is duplicate.
@@ -113,26 +117,31 @@ class UserService:
             user_id=user_id,
             user_data=user_data.model_dump(exclude_unset=True),
         )
-        result = await self.db.execute(select(UserORM).where(UserORM.id == user_id))
+        result = await self.db.execute(
+            select(UserORM).where(UserORM.user_id == user_id)
+        )
         user = result.scalar_one_or_none()
         if not user:
-            logger.error(
-                "User not found for update",
-                user_id=user_id,
-            )
             raise BusinessException(
-                message=f"User with id '{user_id}' not found",
-                details=[],
+                message=f"User with user_id '{user_id}' not found",
+                details=[
+                    {
+                        "field": "user_id",
+                        "message": "User not found",
+                        "code": "not_found",
+                    }
+                ],
             )
         update_data = user_data.model_dump(exclude_unset=True)
         # Check for duplicate email (excluding self)
         if "email" in update_data:
-            existing = await self.db.execute(
+            existing_email = await self.db.execute(
                 select(UserORM).where(
-                    (UserORM.email == update_data["email"]) & (UserORM.id != user_id)
+                    (UserORM.email == update_data["email"])
+                    & (UserORM.user_id != user_id)
                 )
             )
-            if existing.scalar_one_or_none():
+            if existing_email.scalar_one_or_none():
                 logger.warning(
                     "Failed to update user due to duplicate email",
                     email=update_data["email"],
@@ -179,22 +188,26 @@ class UserService:
             )
         return UserInDB.model_validate(user)
 
-    async def delete_user(self, user_id: int) -> None:
+    async def delete_user(self, user_id: str) -> None:
         """
         Delete a user by their unique ID.
         Raises BusinessException if user not found.
         """
         logger.debug("Attempting to delete user", user_id=user_id)
-        result = await self.db.execute(select(UserORM).where(UserORM.id == user_id))
+        result = await self.db.execute(
+            select(UserORM).where(UserORM.user_id == user_id)
+        )
         user = result.scalar_one_or_none()
         if not user:
-            logger.error(
-                "User not found for deletion",
-                user_id=user_id,
-            )
             raise BusinessException(
-                message=f"User with id '{user_id}' not found",
-                details=[],
+                message=f"User with user_id '{user_id}' not found",
+                details=[
+                    {
+                        "field": "user_id",
+                        "message": "User not found",
+                        "code": "not_found",
+                    }
+                ],
             )
         await self.db.delete(user)
         await self.db.commit()

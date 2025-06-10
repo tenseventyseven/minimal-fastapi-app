@@ -10,6 +10,7 @@ class UserCreate(BaseModel):
     All fields required.
     """
 
+    user_id: str = Field(..., description="User's unique user_id")
     given_name: str = Field(
         ..., min_length=1, max_length=100, description="User's given name"
     )
@@ -27,7 +28,7 @@ class UserCreate(BaseModel):
 class UserUpdate(BaseModel):
     """
     Pydantic schema for updating an existing user.
-    All fields optional.
+    All fields optional, but user_id is not allowed.
     """
 
     given_name: Optional[str] = Field(
@@ -50,7 +51,8 @@ class UserInDB(BaseModel):
     Includes internal fields.
     """
 
-    id: int = Field(..., gt=0, description="User ID")
+    id: int = Field(..., gt=0, description="Database autoincrement ID")
+    user_id: str = Field(..., description="User's unique user_id")
     given_name: str = Field(
         ..., min_length=1, max_length=100, description="User's given name"
     )
@@ -77,6 +79,7 @@ class User(UserInDB):
         json_schema_extra={
             "example": {
                 "id": 1,
+                "user_id": "abc123",
                 "given_name": "John",
                 "family_name": "Doe",
                 "email": "john@example.com",

@@ -67,7 +67,7 @@ async def create_user(
 
     logger.info(
         "User creation endpoint completed",
-        **enrich_log_fields({"user_id": user.id}, request, user_id=user.id),
+        **enrich_log_fields({"user_id": user.user_id}, request, user_id=user.user_id),
     )
 
     return User.model_validate(user)
@@ -123,7 +123,7 @@ async def get_users(
     "/{user_id}",
     response_model=User,
     tags=["users"],
-    description="Get a specific user by ID.",
+    description="Get a specific user by user_id.",
     summary="Get User",
     operation_id="getUser",
     responses={
@@ -132,12 +132,12 @@ async def get_users(
     },
 )
 async def get_user(
-    user_id: int, request: Request, db: AsyncSession = Depends(get_db_session)
+    user_id: str, request: Request, db: AsyncSession = Depends(get_db_session)
 ) -> User:
-    """Get a specific user by ID.
+    """Get a specific user by user_id (string).
 
     Args:
-        user_id (int): The user ID.
+        user_id (str): The user_id.
         request (Request): The incoming HTTP request.
 
     Returns:
@@ -158,7 +158,7 @@ async def get_user(
         raise HTTPException(status_code=404, detail=exc.message)
     logger.info(
         "Get user endpoint completed",
-        **enrich_log_fields({"user_id": user.id}, request, user_id=user.id),
+        **enrich_log_fields({"user_id": user.user_id}, request, user_id=user.user_id),
     )
     return User.model_validate(user)
 
@@ -168,7 +168,7 @@ async def get_user(
     response_model=User,
     tags=["users"],
     description=(
-        "Update a user by ID. All fields must be provided. "
+        "Update a user by user_id. All fields must be provided. "
         "Missing fields will be set to null or default."
     ),
     summary="Update User",
@@ -180,31 +180,18 @@ async def get_user(
     },
 )
 async def update_user(
-    user_id: int,
-    user_data: UserCreate,  # <-- require all fields for PUT
+    user_id: str,
+    user_update: UserUpdate,
     request: Request,
     db: AsyncSession = Depends(get_db_session),
 ) -> User:
-    """
-    Update a user by ID. All fields must be provided.
-    Missing fields will be set to null or default.
-    Args:
-        user_id (int): The user ID.
-        user_data (UserCreate): The user update payload (full replacement).
-        request (Request): The incoming HTTP request.
-    Returns:
-        User: The updated user object.
-    Raises:
-        HTTPException: If user is not found or update fails.
-    """
+    """Update a user by user_id (string). All fields must be provided."""
     logger.info(
         "Update user endpoint called",
         **enrich_log_fields({"user_id": user_id}, request, user_id=user_id),
     )
     user_service = UserService(db)
     try:
-        # Convert UserCreate to dict and pass to update_user as UserUpdate
-        user_update = UserUpdate(**user_data.model_dump())
         user = await user_service.update_user(user_id, user_update)
     except BusinessException as exc:
         if "not found" in exc.message.lower():
@@ -212,7 +199,7 @@ async def update_user(
         raise HTTPException(status_code=400, detail=exc.message)
     logger.info(
         "Update user endpoint completed",
-        **enrich_log_fields({"user_id": user.id}, request, user_id=user.id),
+        **enrich_log_fields({"user_id": user.user_id}, request, user_id=user.user_id),
     )
     return User.model_validate(user)
 
@@ -221,7 +208,7 @@ async def update_user(
     "/{user_id}",
     response_model=User,
     tags=["users"],
-    description="Partially update a user by ID.",
+    description="Partially update a user by user_id.",
     summary="Patch User",
     operation_id="patchUser",
     responses={
@@ -231,15 +218,16 @@ async def update_user(
     },
 )
 async def patch_user(
-    user_id: int,
+    user_id: str,
     user_data: UserUpdate,
     request: Request,
     db: AsyncSession = Depends(get_db_session),
 ) -> User:
     """
-    Partially update a user by ID. Only the provided fields will be updated.
+    Partially update a user by user_id (string).
+    Only the provided fields will be updated.
     Args:
-        user_id (int): The user ID.
+        user_id (str): The user_id.
         user_data (UserUpdate): The user update payload (partial).
         request (Request): The incoming HTTP request.
     Returns:
@@ -260,7 +248,7 @@ async def patch_user(
         raise HTTPException(status_code=400, detail=exc.message)
     logger.info(
         "Patch user endpoint completed",
-        **enrich_log_fields({"user_id": user.id}, request, user_id=user.id),
+        **enrich_log_fields({"user_id": user.user_id}, request, user_id=user.user_id),
     )
     return User.model_validate(user)
 
@@ -269,7 +257,7 @@ async def patch_user(
     "/{user_id}",
     status_code=204,
     tags=["users"],
-    description="Delete a user by ID.",
+    description="Delete a user by user_id.",
     summary="Delete User",
     operation_id="deleteUser",
     responses={
@@ -278,17 +266,11 @@ async def patch_user(
     },
 )
 async def delete_user(
-    user_id: int, request: Request, db: AsyncSession = Depends(get_db_session)
+    user_id: str,
+    request: Request,
+    db: AsyncSession = Depends(get_db_session),
 ) -> None:
-    """Delete a user by ID.
-
-    Args:
-        user_id (int): The user ID.
-        request (Request): The incoming HTTP request.
-
-    Raises:
-        HTTPException: If user is not found.
-    """
+    """Delete a user by user_id (string)."""
     logger.info(
         "Delete user endpoint called",
         **enrich_log_fields({"user_id": user_id}, request, user_id=user_id),
@@ -297,7 +279,6 @@ async def delete_user(
     try:
         await user_service.delete_user(user_id)
     except BusinessException as exc:
-        # Not found error
         raise HTTPException(status_code=404, detail=exc.message)
     logger.info(
         "Delete user endpoint completed",
