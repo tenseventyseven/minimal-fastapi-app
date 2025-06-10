@@ -1,5 +1,6 @@
 # Combined user-project relationship and association tests
 import uuid
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 
