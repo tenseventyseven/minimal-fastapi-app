@@ -34,6 +34,7 @@ class PaginatedProjectsResponse(BaseModel):
         limit (int): Number of projects returned in this page.
         skip (int): Number of projects skipped (offset).
     """
+
     items: list[Project]
     total: int
     limit: int
@@ -532,10 +533,9 @@ async def list_users_in_project(
     users = db_project.users
     logger.info(
         "List users in project endpoint completed",
-        **enrich_log_fields({
-            "project_id": project_id,
-            "user_count": len(users)
-        }, request),
+        **enrich_log_fields(
+            {"project_id": project_id, "user_count": len(users)}, request
+        ),
     )
     return [User.model_validate(u) for u in users]
 
@@ -589,9 +589,8 @@ async def list_projects_for_user(
     projects = user.projects
     logger.info(
         "List projects for user endpoint completed",
-        **enrich_log_fields({
-            "user_id": user_id,
-            "project_count": len(projects)
-        }, request),
+        **enrich_log_fields(
+            {"user_id": user_id, "project_count": len(projects)}, request
+        ),
     )
     return [Project.model_validate(p) for p in projects]
