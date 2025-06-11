@@ -4,6 +4,7 @@ from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 
+# 1. Base
 class ProjectBase(BaseModel):
     """
     Base schema for project fields.
@@ -22,21 +23,7 @@ class ProjectBase(BaseModel):
     )
 
 
-class ProjectCreate(ProjectBase):
-    """
-    Schema for creating a new project.
-
-    All fields are required except description (optional).
-    Attributes:
-        project_id (str): Unique project identifier.
-        description (str, optional): Project description.
-    """
-
-    project_id: str = Field(..., min_length=1, description="Unique project identifier")
-    # description is inherited and remains optional
-    # model_config is inherited from ProjectBase
-
-
+# 2. InDB
 class ProjectInDB(ProjectBase):
     """
     Schema representing a project as stored in the database.
@@ -60,6 +47,7 @@ class ProjectInDB(ProjectBase):
     )
 
 
+# 3. API Response
 class Project(ProjectInDB):
     """
     Schema for project returned in API responses.
@@ -80,6 +68,23 @@ class Project(ProjectInDB):
     )
 
 
+# 4. Create
+class ProjectCreate(ProjectBase):
+    """
+    Schema for creating a new project.
+
+    All fields are required except description (optional).
+    Attributes:
+        project_id (str): Unique project identifier.
+        description (str, optional): Project description.
+    """
+
+    project_id: str = Field(..., min_length=1, description="Unique project identifier")
+    # description is inherited and remains optional
+    # model_config is inherited from ProjectBase
+
+
+# 5. Update
 class ProjectUpdate(ProjectBase):
     """
     Schema for updating an existing project.
