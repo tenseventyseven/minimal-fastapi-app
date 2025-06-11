@@ -4,13 +4,14 @@ from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class ProjectCreate(BaseModel):
+class ProjectBase(BaseModel):
     """
-    Pydantic schema for creating a new project.
-    All fields required except description (optional).
+    Base schema for project fields.
+
+    Attributes:
+        description (str, optional): Project description.
     """
 
-    project_id: str = Field(..., min_length=1, description="Unique project identifier")
     description: Optional[str] = Field(
         None, max_length=255, description="Project description"
     )
@@ -21,17 +22,36 @@ class ProjectCreate(BaseModel):
     )
 
 
-class ProjectInDB(BaseModel):
+class ProjectCreate(ProjectBase):
     """
-    Pydantic schema representing a project as stored in the database.
+    Schema for creating a new project.
+
+    All fields are required except description (optional).
+    Attributes:
+        project_id (str): Unique project identifier.
+        description (str, optional): Project description.
+    """
+
+    project_id: str = Field(..., min_length=1, description="Unique project identifier")
+    # description is inherited and remains optional
+    # model_config is inherited from ProjectBase
+
+
+class ProjectInDB(ProjectBase):
+    """
+    Schema representing a project as stored in the database.
     Includes internal fields.
+
+    Attributes:
+        id (int): Database autoincrement ID.
+        project_id (str): Unique project identifier.
+        description (str, optional): Project description.
+        created_at (datetime): Project creation timestamp.
+        updated_at (datetime): Project last update timestamp.
     """
 
     id: int = Field(..., gt=0, description="Database autoincrement ID")
     project_id: str = Field(..., min_length=1, description="Unique project identifier")
-    description: Optional[str] = Field(
-        None, max_length=255, description="Project description"
-    )
     created_at: datetime = Field(..., description="Project creation timestamp")
     updated_at: datetime = Field(..., description="Project last update timestamp")
     model_config = ConfigDict(
@@ -42,7 +62,7 @@ class ProjectInDB(BaseModel):
 
 class Project(ProjectInDB):
     """
-    Pydantic schema for project returned in API responses.
+    Schema for project returned in API responses.
     Inherits from ProjectInDB.
     """
 
@@ -60,20 +80,22 @@ class Project(ProjectInDB):
     )
 
 
-class ProjectUpdate(BaseModel):
+class ProjectUpdate(ProjectBase):
     """
-    Pydantic schema for updating an existing project.
-    All fields optional.
+    Schema for updating an existing project.
+
+    All fields are optional.
+    Attributes:
+        project_id (str, optional): Unique project identifier.
+        description (str, optional): Project description.
     """
 
     project_id: Optional[str] = Field(
         None, min_length=1, description="Unique project identifier"
     )
-    description: Optional[str] = Field(
-        None, max_length=255, description="Project description"
-    )
+    # description is inherited and remains optional
     model_config = ConfigDict(
         str_strip_whitespace=True,
         validate_assignment=True,
-        extra="forbid",
+        extra="ignore",  # Allow PATCH to ignore extra fields for partial updates
     )

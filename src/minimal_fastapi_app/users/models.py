@@ -12,9 +12,6 @@ from minimal_fastapi_app.core.db import Base
 if TYPE_CHECKING:
     from minimal_fastapi_app.projects.models import ProjectORM
 
-    # For static type checking only.
-    pass
-
 
 class UserORM(Base):
     """

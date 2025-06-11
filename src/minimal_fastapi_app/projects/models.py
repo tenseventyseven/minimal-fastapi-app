@@ -9,13 +9,13 @@ from minimal_fastapi_app.core.association_tables import user_project_association
 from minimal_fastapi_app.core.db import Base
 
 if TYPE_CHECKING:
-    from minimal_fastapi_app.users.models import UserORM  # noqa: F401
+    from minimal_fastapi_app.users.models import UserORM
 
 
 class ProjectORM(Base):
     """
     SQLAlchemy ORM for projects table.
-    - project_id is unique (string, indexed).
+    - project_id is unique and indexed.
     - Linked to users via user_project_association (many-to-many).
     - created_at is set on creation.
     - updated_at is set on update.
