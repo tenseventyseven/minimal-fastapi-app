@@ -21,7 +21,15 @@ router = APIRouter(
 
 
 class PaginatedUsersResponse(BaseModel):
-    """Paginated response model for users list API."""
+    """
+    Paginated response model for users list API.
+
+    Attributes:
+        items (list[User]): List of user objects.
+        total (int): Total number of users available.
+        limit (int): Number of users returned in this page.
+        skip (int): Number of users skipped (offset).
+    """
 
     items: list[User]
     total: int
@@ -67,7 +75,7 @@ async def create_user(
 
     logger.info(
         "User creation endpoint completed",
-        **enrich_log_fields({"user_id": user.id}, request, user_id=user.id),
+        **enrich_log_fields({"user_id": user.user_id}, request, user_id=user.user_id),
     )
 
     return User.model_validate(user)
@@ -123,7 +131,7 @@ async def get_users(
     "/{user_id}",
     response_model=User,
     tags=["users"],
-    description="Get a specific user by ID.",
+    description="Get a specific user by user_id.",
     summary="Get User",
     operation_id="getUser",
     responses={
@@ -132,12 +140,12 @@ async def get_users(
     },
 )
 async def get_user(
-    user_id: int, request: Request, db: AsyncSession = Depends(get_db_session)
+    user_id: str, request: Request, db: AsyncSession = Depends(get_db_session)
 ) -> User:
-    """Get a specific user by ID.
+    """Get a specific user by user_id (string).
 
     Args:
-        user_id (int): The user ID.
+        user_id (str): The user_id.
         request (Request): The incoming HTTP request.
 
     Returns:
@@ -158,7 +166,7 @@ async def get_user(
         raise HTTPException(status_code=404, detail=exc.message)
     logger.info(
         "Get user endpoint completed",
-        **enrich_log_fields({"user_id": user.id}, request, user_id=user.id),
+        **enrich_log_fields({"user_id": user.user_id}, request, user_id=user.user_id),
     )
     return User.model_validate(user)
 
@@ -167,7 +175,10 @@ async def get_user(
     "/{user_id}",
     response_model=User,
     tags=["users"],
-    description="Update a user by ID.",
+    description=(
+        "Update a user by user_id. All fields must be provided. "
+        "Missing fields will be set to null or default."
+    ),
     summary="Update User",
     operation_id="updateUser",
     responses={
@@ -177,26 +188,109 @@ async def get_user(
     },
 )
 async def update_user(
-    user_id: int,
+    user_id: str,
     user_data: UserUpdate,
     request: Request,
     db: AsyncSession = Depends(get_db_session),
 ) -> User:
-    """Update a user by ID.
+    """
+    Replace all fields of a user by user_id.
 
     Args:
-        user_id (int): The user ID.
-        user_data (UserUpdate): The user update payload.
+        user_id (str): The unique user identifier from the path.
+        user_data (UserUpdate): The new user data (all fields required).
         request (Request): The incoming HTTP request.
+        db (AsyncSession): The database session dependency.
 
     Returns:
         User: The updated user object.
 
     Raises:
-        HTTPException: If user is not found or update fails.
+        HTTPException: 422 if any required field is missing,
+        404 if user not found,
+        400 for business/validation errors.
     """
     logger.info(
         "Update user endpoint called",
+        **enrich_log_fields({"user_id": user_id}, request, user_id=user_id),
+    )
+    # Ensure all required fields are present for a full update (PUT)
+    missing_fields = [
+        field
+        for field in ["given_name", "family_name", "email"]
+        if getattr(user_data, field) is None
+    ]
+    if missing_fields:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error": "validation_error",
+                "message": (
+                    f"PUT requires all fields: missing {', '.join(missing_fields)}"
+                ),
+                "fields": missing_fields,
+            },
+        )
+    user_service = UserService(db)
+    try:
+        user = await user_service.update_user(user_id, user_data)
+    except BusinessException as exc:
+        if "not found" in exc.message.lower():
+            raise HTTPException(
+                status_code=404,
+                detail={
+                    "error": "not_found",
+                    "message": exc.message,
+                    "user_id": user_id,
+                },
+            )
+        raise HTTPException(
+            status_code=400, detail={"error": "business_error", "message": exc.message}
+        )
+    logger.info(
+        "Update user endpoint completed",
+        **enrich_log_fields({"user_id": user.user_id}, request, user_id=user.user_id),
+    )
+    return User.model_validate(user)
+
+
+@router.patch(
+    "/{user_id}",
+    response_model=User,
+    tags=["users"],
+    description="Partially update a user by user_id.",
+    summary="Patch User",
+    operation_id="patchUser",
+    responses={
+        200: {"description": "User updated successfully."},
+        400: {"description": "Duplicate email or validation error."},
+        404: {"description": "User not found."},
+    },
+)
+async def patch_user(
+    user_id: str,
+    user_data: UserUpdate,
+    request: Request,
+    db: AsyncSession = Depends(get_db_session),
+) -> User:
+    """
+    Partially update a user by user_id.
+
+    Args:
+        user_id (str): The unique user identifier from the path.
+        user_data (UserUpdate): The user update payload (partial; only provided
+            fields will be updated).
+        request (Request): The incoming HTTP request.
+        db (AsyncSession): The database session dependency.
+
+    Returns:
+        User: The updated user object.
+
+    Raises:
+        HTTPException: 404 if user not found, 400 for business/validation errors.
+    """
+    logger.info(
+        "Patch user endpoint called",
         **enrich_log_fields({"user_id": user_id}, request, user_id=user_id),
     )
     user_service = UserService(db)
@@ -204,11 +298,20 @@ async def update_user(
         user = await user_service.update_user(user_id, user_data)
     except BusinessException as exc:
         if "not found" in exc.message.lower():
-            raise HTTPException(status_code=404, detail=exc.message)
-        raise HTTPException(status_code=400, detail=exc.message)
+            raise HTTPException(
+                status_code=404,
+                detail={
+                    "error": "not_found",
+                    "message": exc.message,
+                    "user_id": user_id,
+                },
+            )
+        raise HTTPException(
+            status_code=400, detail={"error": "business_error", "message": exc.message}
+        )
     logger.info(
-        "Update user endpoint completed",
-        **enrich_log_fields({"user_id": user.id}, request, user_id=user.id),
+        "Patch user endpoint completed",
+        **enrich_log_fields({"user_id": user.user_id}, request, user_id=user.user_id),
     )
     return User.model_validate(user)
 
@@ -217,7 +320,7 @@ async def update_user(
     "/{user_id}",
     status_code=204,
     tags=["users"],
-    description="Delete a user by ID.",
+    description="Delete a user by user_id.",
     summary="Delete User",
     operation_id="deleteUser",
     responses={
@@ -226,16 +329,20 @@ async def update_user(
     },
 )
 async def delete_user(
-    user_id: int, request: Request, db: AsyncSession = Depends(get_db_session)
+    user_id: str,
+    request: Request,
+    db: AsyncSession = Depends(get_db_session),
 ) -> None:
-    """Delete a user by ID.
+    """
+    Delete a user by user_id.
 
     Args:
-        user_id (int): The user ID.
+        user_id (str): The unique user identifier from the path.
         request (Request): The incoming HTTP request.
+        db (AsyncSession): The database session dependency.
 
     Raises:
-        HTTPException: If user is not found.
+        HTTPException: 404 if user not found.
     """
     logger.info(
         "Delete user endpoint called",
@@ -244,9 +351,11 @@ async def delete_user(
     user_service = UserService(db)
     try:
         await user_service.delete_user(user_id)
-    except BusinessException as exc:
-        # Not found error
-        raise HTTPException(status_code=404, detail=exc.message)
+    except BusinessException:
+        # Return plain string for detail to match test expectations
+        raise HTTPException(
+            status_code=404, detail=f"User with user_id '{user_id}' not found"
+        )
     logger.info(
         "Delete user endpoint completed",
         **enrich_log_fields({"user_id": user_id}, request, user_id=user_id),

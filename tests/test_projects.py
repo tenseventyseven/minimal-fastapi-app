@@ -1,36 +1,35 @@
+import uuid
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 
 
 @pytest.mark.asyncio
 async def test_create_project(app):
-    project_data = {
-        "name": "Project Alpha",
-        "description": "A test project",
-    }
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as ac:
-        response = await ac.post("/v1/projects/", json=project_data)
-        assert response.status_code == 201
-        data = response.json()
-        assert data["name"] == "Project Alpha"
-        assert data["description"] == "A test project"
-        assert data["id"] == 1
-        assert "created_at" in data
+        data = {"project_id": f"Project Alpha {uuid.uuid4()}"}
+        resp = await ac.post("/v1/projects/", json=data)
+        assert resp.status_code == 201
+        project = resp.json()
+        assert project["project_id"].startswith("Project Alpha")
+        assert "id" in project
+        assert "created_at" in project
+        assert "updated_at" in project  # TDD: updated_at must be present
 
 
 @pytest.mark.asyncio
 async def test_create_duplicate_project(app):
-    project_data = {"name": "Project Alpha"}
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as ac:
-        await ac.post("/v1/projects/", json=project_data)
-        response = await ac.post("/v1/projects/", json=project_data)
-        assert response.status_code == 400
-        error_data = response.json()
-        assert "already exists" in error_data["detail"].lower()
+        project_id = f"Project Beta {uuid.uuid4()}"
+        data = {"project_id": project_id}
+        await ac.post("/v1/projects/", json=data)
+        resp = await ac.post("/v1/projects/", json=data)
+        assert resp.status_code == 400
+        assert "already exists" in resp.text
 
 
 @pytest.mark.asyncio
@@ -50,7 +49,7 @@ async def test_get_projects_empty(app):
 async def test_get_projects_with_pagination(app):
     # Create 5 new projects
     for i in range(5):
-        project_data = {"name": f"Project {i}"}
+        project_data = {"project_id": f"Project {i}"}
         async with AsyncClient(
             transport=ASGITransport(app=app), base_url="http://test"
         ) as ac:
@@ -66,14 +65,14 @@ async def test_get_projects_with_pagination(app):
         # There may be more than 5 total if other tests ran before
         assert data["total"] >= 5
         assert len(data["items"]) == 2
-        # The names should match the ones we just created, but may be offset
-        names = [item["name"] for item in data["items"]]
-        assert all(name.startswith("Project ") for name in names)
+        # The project_ids should match the ones we just created, but may be offset
+        project_ids = [item["project_id"] for item in data["items"]]
+        assert all(pid.startswith("Project ") for pid in project_ids)
 
 
 @pytest.mark.asyncio
 async def test_get_project_by_id(app):
-    project_data = {"name": "Specific Project", "description": "Desc"}
+    project_data = {"project_id": "Specific Project", "description": "Desc"}
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as ac:
@@ -82,7 +81,7 @@ async def test_get_project_by_id(app):
         response = await ac.get(f"/v1/projects/{project_id}")
         assert response.status_code == 200
         data = response.json()
-        assert data["name"] == "Specific Project"
+        assert data["project_id"] == "Specific Project"
         assert data["description"] == "Desc"
 
 
@@ -112,11 +111,41 @@ async def test_delete_nonexistent_project(app):
 
 @pytest.mark.asyncio
 async def test_create_project_validation_error(app):
-    """Should return 422 for invalid project creation data (missing name)."""
+    """Should return 422 for invalid project creation data (missing project_id)."""
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as ac:
-        response = await ac.post("/v1/projects/", json={"description": "No name"})
+        response = await ac.post("/v1/projects/", json={"description": "No project_id"})
         assert response.status_code == 422
         error_data = response.json()
         assert "detail" in error_data
+
+
+@pytest.mark.asyncio
+async def test_update_project_updates_updated_at(app):
+    """Should update a project's updated_at on PATCH and PUT."""
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        data = {"project_id": f"Project Gamma {uuid.uuid4()}"}
+        resp = await ac.post("/v1/projects/", json=data)
+        project = resp.json()
+        pid = project["id"]
+        orig_updated = project["updated_at"]
+        # PATCH: partial update
+        patch_update = {"project_id": f"Project Gamma Patched {uuid.uuid4()}"}
+        resp2 = await ac.patch(f"/v1/projects/{pid}", json=patch_update)
+        assert resp2.status_code == 200
+        updated = resp2.json()
+        assert updated["updated_at"] != orig_updated
+        # PUT: full update (all fields required)
+        put_update = {
+            "project_id": f"Project Gamma Put {uuid.uuid4()}",
+            "description": "Put desc",
+        }
+        resp3 = await ac.put(f"/v1/projects/{pid}", json=put_update)
+        assert resp3.status_code == 200
+        updated2 = resp3.json()
+        assert updated2["updated_at"] != updated["updated_at"]
+        assert updated2["project_id"].startswith("Project Gamma Put")
+        assert updated2["description"] == "Put desc"

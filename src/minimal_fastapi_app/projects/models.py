@@ -1,44 +1,40 @@
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Table
-from sqlalchemy.orm import relationship
+from sqlalchemy import DateTime, Integer, String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from minimal_fastapi_app.core.association_tables import user_project_association
 from minimal_fastapi_app.core.db import Base
 
 if TYPE_CHECKING:
-    # For static type checking only.
-    pass
-
-
-# Association table for many-to-many relationship
-user_project_association = Table(
-    "user_project_association",
-    Base.metadata,
-    Column("user_id", Integer, ForeignKey("users.id"), primary_key=True),
-    Column("project_id", Integer, ForeignKey("projects.id"), primary_key=True),
-)
+    from minimal_fastapi_app.users.models import UserORM
 
 
 class ProjectORM(Base):
     """
     SQLAlchemy ORM for projects table.
-    - Project name is unique.
+    - project_id is unique and indexed.
     - Linked to users via user_project_association (many-to-many).
     - created_at is set on creation.
+    - updated_at is set on update.
     """
 
     __tablename__ = "projects"
 
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(100), unique=True, nullable=False, index=True)
-    description = Column(String(255), nullable=True)
-    created_at = Column(DateTime, nullable=False)
-    users = relationship(
-        "UserORM",
-        secondary="user_project_association",
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    project_id: Mapped[str] = mapped_column(
+        String, unique=True, nullable=False, index=True
+    )
+    description: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[DateTime] = mapped_column(DateTime, nullable=False)
+    updated_at: Mapped[DateTime] = mapped_column(DateTime, nullable=False)
+    users: Mapped[list["UserORM"]] = relationship(
+        secondary=user_project_association,
         back_populates="projects",
         lazy="selectin",
     )
 
     def __repr__(self) -> str:
-        return f"<ProjectORM(id={self.id}, name={self.name!r})>"
+        return f"<ProjectORM(id={self.id}, project_id={self.project_id!r})>"

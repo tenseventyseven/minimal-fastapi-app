@@ -64,10 +64,9 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
-        # Pydantic v2 best practices
-        validate_assignment=True,  # Validate on assignment
-        use_enum_values=True,  # Use enum values in serialization
-        frozen=False,  # Allow mutation (can be True for immutable settings)
+        validate_assignment=True,
+        use_enum_values=True,
+        frozen=False,
     )
 
     @field_validator("allowed_hosts", mode="before")

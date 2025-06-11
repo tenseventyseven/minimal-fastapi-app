@@ -97,16 +97,17 @@ minimal-fastapi-app/
 
 ## API Endpoints (Users)
 
-| Method | Endpoint         | Description            |
-| ------ | ---------------- | ---------------------- |
-| GET    | `/`              | Root welcome/status    |
-| GET    | `/health`        | Health check           |
-| GET    | `/info`          | App info/config        |
-| POST   | `/v1/users/`     | Create user            |
-| GET    | `/v1/users/`     | List users (paginated) |
-| GET    | `/v1/users/{id}` | Get user by ID         |
-| PUT    | `/v1/users/{id}` | Update user            |
-| DELETE | `/v1/users/{id}` | Delete user            |
+| Method | Endpoint         | Description                                     |
+| ------ | ---------------- | ----------------------------------------------- |
+| GET    | `/`              | Root welcome/status                             |
+| GET    | `/health`        | Health check                                    |
+| GET    | `/info`          | App info/config                                 |
+| POST   | `/v1/users/`     | Create user                                     |
+| GET    | `/v1/users/`     | List users (paginated)                          |
+| GET    | `/v1/users/{id}` | Get user by ID                                  |
+| PUT    | `/v1/users/{id}` | Update user (full replace, all fields required) |
+| PATCH  | `/v1/users/{id}` | Partially update user (only provided fields)    |
+| DELETE | `/v1/users/{id}` | Delete user                                     |
 
 Projects endpoints follow a similar pattern under `/v1/projects/`.
 
