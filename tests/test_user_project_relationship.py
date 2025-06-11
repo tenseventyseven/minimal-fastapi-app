@@ -13,7 +13,7 @@ async def test_add_user_to_project(app):
     ) as ac:
         # Create user with unique email
         user_data = {
-            "user_id": f"userproj-{uuid.uuid4()}",
+            "user_id": f"userproj-{uuid.uuid4()}".replace("-", ""),
             "given_name": "User Project",
             "family_name": "Test",
             "email": f"userproj-{uuid.uuid4()}@example.com",
@@ -39,7 +39,7 @@ async def test_remove_user_from_project(app):
     ) as ac:
         # Create user and project with unique email and project_id
         user_data = {
-            "user_id": f"userremove-{uuid.uuid4()}",
+            "user_id": f"userremove-{uuid.uuid4()}".replace("-", ""),
             "given_name": "User Remove",
             "family_name": "Test",
             "email": f"userremove-{uuid.uuid4()}@ex.com",
@@ -69,7 +69,7 @@ async def test_list_users_in_project(app):
         transport=ASGITransport(app=app), base_url="http://test"
     ) as ac:
         user_data = {
-            "user_id": f"user1-{uuid.uuid4()}",
+            "user_id": f"user1-{uuid.uuid4()}".replace("-", ""),
             "given_name": "User1",
             "family_name": "Test",
             "email": f"user1-{uuid.uuid4()}@ex.com",
@@ -92,7 +92,7 @@ async def test_list_projects_for_user(app):
         transport=ASGITransport(app=app), base_url="http://test"
     ) as ac:
         user_data = {
-            "user_id": f"user2-{uuid.uuid4()}",
+            "user_id": f"user2-{uuid.uuid4()}".replace("-", ""),
             "given_name": "User2",
             "family_name": "Test",
             "email": f"user2-{uuid.uuid4()}@ex.com",

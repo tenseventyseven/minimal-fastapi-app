@@ -55,7 +55,7 @@ class ProjectService:
             project_id=project_data.project_id,
             description=project_data.description,
             created_at=datetime.now(),
-            updated_at=datetime.now(),  # NEW
+            updated_at=datetime.now(),
         )
         self.db.add(project)
         try:

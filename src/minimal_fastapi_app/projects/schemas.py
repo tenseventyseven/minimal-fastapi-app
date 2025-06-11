@@ -27,7 +27,7 @@ class ProjectInDB(BaseModel):
     Includes internal fields.
     """
 
-    id: int = Field(..., gt=0, description="Project DB ID")
+    id: int = Field(..., gt=0, description="Database autoincrement ID")
     project_id: str = Field(..., min_length=1, description="Unique project identifier")
     description: Optional[str] = Field(
         None, max_length=255, description="Project description"

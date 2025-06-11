@@ -9,7 +9,7 @@ async def test_create_user(client: AsyncClient) -> None:
     """Should create a user and return correct fields."""
     unique_email = f"john-{uuid.uuid4()}@example.com"
     user_data = {
-        "user_id": f"user-{uuid.uuid4()}",
+        "user_id": f"john-{uuid.uuid4()}".replace("-", ""),
         "given_name": "John",
         "family_name": "Doe",
         "email": unique_email,
@@ -21,8 +21,8 @@ async def test_create_user(client: AsyncClient) -> None:
     assert data["given_name"] == "John"
     assert data["family_name"] == "Doe"
     assert data["email"] == unique_email
-    assert isinstance(data["id"], int)
-    assert data["id"] > 0
+    assert "user_id" in data
+    assert data["user_id"]
     assert "created_at" in data
     assert "updated_at" in data  # TDD: updated_at must be present
 
@@ -35,7 +35,7 @@ async def test_create_duplicate_email(app) -> None:
     ) as ac:
         email = f"bob-{uuid.uuid4()}@example.com"
         data = {
-            "user_id": f"bob-{uuid.uuid4()}",
+            "user_id": f"user-{uuid.uuid4()}".replace("-", ""),
             "given_name": "Bob",
             "family_name": "Smith",
             "email": email,
@@ -50,7 +50,7 @@ async def test_create_duplicate_email(app) -> None:
 async def test_create_user_without_age(app) -> None:
     """Should create a user without age and set age to None."""
     user_data = {
-        "user_id": f"jane-{uuid.uuid4()}",
+        "user_id": f"user-{uuid.uuid4()}".replace("-", ""),
         "given_name": "Jane",
         "family_name": "Doe",
         "email": "jane@example.com",
@@ -72,7 +72,7 @@ async def test_create_user_with_whitespace(app) -> None:
     """Should trim whitespace from user name."""
     unique_email = f"whitespace-{uuid.uuid4()}@example.com"
     user_data = {
-        "user_id": f"whitespace-{uuid.uuid4()}",
+        "user_id": f"user-{uuid.uuid4()}".replace("-", ""),
         "given_name": "  John  ",
         "family_name": "  Doe  ",
         "email": unique_email,
@@ -148,7 +148,7 @@ async def test_get_users_with_pagination(app) -> None:
         # Create multiple users
         for i in range(5):
             user_data = {
-                "user_id": f"User{unique_prefix}-{i}",
+                "user_id": f"user-{uuid.uuid4()}".replace("-", ""),
                 "given_name": f"User{unique_prefix}-{i}",
                 "family_name": f"Fam{unique_prefix}-{i}",
                 "email": f"user{unique_prefix}-{i}@example.com",
@@ -178,7 +178,7 @@ async def test_get_user_by_id(app) -> None:
     ) as ac:
         # Create a user first
         user_data = {
-            "user_id": f"specific-{uuid.uuid4()}",
+            "user_id": f"user-{uuid.uuid4()}".replace("-", ""),
             "given_name": "Specific",
             "family_name": "User",
             "email": "specific@example.com",
@@ -214,7 +214,7 @@ async def test_update_user(app) -> None:
         transport=ASGITransport(app=app), base_url="http://test"
     ) as ac:
         data = {
-            "user_id": f"charlie-{uuid.uuid4()}",
+            "user_id": f"user-{uuid.uuid4()}".replace("-", ""),
             "given_name": "Charlie",
             "family_name": "Smith",
             "email": f"charlie-{uuid.uuid4()}@example.com",
@@ -230,6 +230,7 @@ async def test_update_user(app) -> None:
         assert updated["given_name"] == "CharliePatched"
         # PUT: full update (all fields required)
         put_update = {
+            "user_id": f"user-{uuid.uuid4()}".replace("-", ""),
             "given_name": "CharliePut",
             "family_name": "SmithPut",
             "email": f"charlie-put-{uuid.uuid4()}@example.com",
@@ -252,13 +253,13 @@ async def test_update_user_email_conflict(app) -> None:
     ) as ac:
         # Create two users
         user1_data = {
-            "user_id": f"user1-{unique1}",
+            "user_id": f"user-{uuid.uuid4()}".replace("-", ""),
             "given_name": "User1",
             "family_name": "Fam1",
             "email": f"user1-{unique1}@example.com",
         }
         user2_data = {
-            "user_id": f"user2-{unique2}",
+            "user_id": f"user-{uuid.uuid4()}".replace("-", ""),
             "given_name": "User2",
             "family_name": "Fam2",
             "email": f"user2-{unique2}@example.com",
@@ -273,6 +274,7 @@ async def test_update_user_email_conflict(app) -> None:
         response = await ac.put(
             f"/v1/users/{user2_id}",
             json={
+                "user_id": f"user-{uuid.uuid4()}".replace("-", ""),
                 "given_name": "User2",
                 "family_name": "Fam2",
                 "email": user1_data["email"],
@@ -290,7 +292,7 @@ async def test_update_user_validation(app) -> None:
     ) as ac:
         # Create a user first
         user_data = {
-            "user_id": f"testuser-{uuid.uuid4()}",
+            "user_id": f"user-{uuid.uuid4()}".replace("-", ""),
             "given_name": "TestUser",
             "family_name": "FamUser",
             "email": "test@example.com",
@@ -331,7 +333,7 @@ async def test_delete_user(app) -> None:
     ) as ac:
         # Create a user first
         user_data = {
-            "user_id": f"delete-{uuid.uuid4()}",
+            "user_id": f"user-{uuid.uuid4()}".replace("-", ""),
             "given_name": "To",
             "family_name": "Delete",
             "email": "delete@example.com",

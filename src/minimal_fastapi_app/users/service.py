@@ -1,214 +1,163 @@
+"""
+Service layer for user business logic and database operations.
+
+Implements user CRUD operations with consistent logging, error handling,
+and docstrings matching the projects feature.
+"""
+
 from datetime import datetime
 
-from fastapi import Depends
-from sqlalchemy import func, select
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
 
-from minimal_fastapi_app.core.db import get_db_session
 from minimal_fastapi_app.core.exceptions import BusinessException
 from minimal_fastapi_app.core.logging import get_logger
 from minimal_fastapi_app.users.models import UserORM
-from minimal_fastapi_app.users.schemas import UserCreate, UserInDB, UserUpdate
+from minimal_fastapi_app.users.schemas import UserCreate, UserUpdate
 
 logger = get_logger(__name__)
 
 
 class UserService:
-    """Service layer for user operations using SQLAlchemy async ORM."""
+    """
+    Service class for user-related business logic and database operations.
+    """
 
-    def __init__(self, db: AsyncSession = Depends(get_db_session)):
+    def __init__(self, db: AsyncSession):
+        """
+        Initialize the UserService with a database session.
+
+        Args:
+            db (AsyncSession): The database session.
+        """
         self.db = db
 
-    async def create_user(self, user_data: UserCreate) -> UserInDB:
+    async def create_user(self, user_data: UserCreate) -> UserORM:
         """
-        Create a new user in the database.
-        Checks for duplicate email before creation.
-        Raises BusinessException if email already exists.
+        Create a new user.
+
+        Args:
+            user_data (UserCreate): The user creation payload.
+
+        Returns:
+            UserORM: The created user ORM object.
+
+        Raises:
+            BusinessException: If a user with the same email already exists or
+                on DB error.
         """
-        logger.debug(
-            "Attempting to create user",
-            user_data=user_data.model_dump(),
-        )
-        # Use self.db instead of creating a new session
-        existing = await self.db.execute(
-            select(UserORM).where(UserORM.email == str(user_data.email))
-        )
-        if existing.scalar_one_or_none():
-            raise BusinessException(
-                message="A user with this email already exists",
-                details=[
-                    {
-                        "field": "email",
-                        "message": "Email address is already in use",
-                        "code": "email_exists",
-                    }
-                ],
-            )
+        logger.info("Creating user", extra={"user_email": user_data.email})
+        now = datetime.now()
         user = UserORM(
-            user_id=user_data.user_id,
-            given_name=user_data.given_name,
-            family_name=user_data.family_name,
-            email=str(user_data.email),
-            created_at=datetime.now(),
-            updated_at=datetime.now(),
+            **user_data.model_dump(),
+            created_at=now,
+            updated_at=now,
         )
         self.db.add(user)
         try:
             await self.db.commit()
             await self.db.refresh(user)
-            logger.info(
-                "User created successfully",
-                user_id=user.id,
-            )
-        except IntegrityError:
+        except IntegrityError as exc:
             await self.db.rollback()
-            raise
-        return UserInDB.model_validate(user)
-
-    async def get_user_by_id(self, user_id: str) -> UserInDB:
-        """
-        Retrieve a user by their unique user_id (string).
-        """
-        logger.debug("Fetching user by user_id", user_id=user_id)
-        result = await self.db.execute(
-            select(UserORM).where(UserORM.user_id == user_id)
-        )
-        user = result.scalar_one_or_none()
-        if not user:
-            raise BusinessException(
-                message=f"User with user_id '{user_id}' not found",
-                details=[
-                    {
-                        "field": "user_id",
-                        "message": "User not found",
-                        "code": "not_found",
-                    }
-                ],
+            logger.warning(
+                "Duplicate email or DB error on user create",
+                extra={"error": str(exc)},
             )
-        logger.info("User fetched successfully", user_id=user.user_id)
-        return UserInDB.model_validate(user)
+            raise BusinessException("A user with this email already exists.")
+        logger.info("User created", extra={"user_id": user.user_id})
+        return user
 
     async def get_users(
         self, skip: int = 0, limit: int = 100
-    ) -> tuple[list[UserInDB], int]:
+    ) -> tuple[list[UserORM], int]:
         """
-        Retrieve a paginated list of users and the total count.
-        Useful for API pagination endpoints.
-        """
-        logger.debug(
-            "Fetching users with pagination",
-            skip=skip,
-            limit=limit,
-        )
-        total = await self.db.scalar(select(func.count()).select_from(UserORM))
-        result = await self.db.execute(select(UserORM).offset(skip).limit(limit))
-        users = result.scalars().all()
-        logger.info("Users fetched", count=len(users))
-        return [UserInDB.model_validate(u) for u in users], int(total or 0)
+        Retrieve a paginated list of users.
 
-    async def update_user(self, user_id: str, user_data: UserUpdate) -> UserInDB:
+        Args:
+            skip (int): Number of users to skip.
+            limit (int): Number of users to return.
+
+        Returns:
+            tuple[list[UserORM], int]: List of user ORM objects and total count.
         """
-        Update an existing user's information by ID.
-        Raises BusinessException if user not found or email is duplicate.
+        logger.info("Fetching users", extra={"skip": skip, "limit": limit})
+        result = await self.db.execute(select(UserORM).offset(skip).limit(limit))
+        users = list(result.scalars().all())
+        total_result = await self.db.execute(select(func.count()).select_from(UserORM))
+        total = total_result.scalar_one()
+        logger.info("Fetched users", extra={"count": len(users)})
+        return users, total
+
+    async def get_user_by_id(self, user_id: str) -> UserORM:
         """
-        logger.debug(
-            "Attempting to update user",
-            user_id=user_id,
-            user_data=user_data.model_dump(exclude_unset=True),
-        )
+        Retrieve a user by user_id.
+
+        Args:
+            user_id (str): The unique user identifier.
+
+        Returns:
+            UserORM: The user ORM object.
+
+        Raises:
+            BusinessException: If user is not found.
+        """
+        logger.info("Fetching user by id", extra={"user_id": user_id})
         result = await self.db.execute(
             select(UserORM).where(UserORM.user_id == user_id)
         )
         user = result.scalar_one_or_none()
         if not user:
-            raise BusinessException(
-                message=f"User with user_id '{user_id}' not found",
-                details=[
-                    {
-                        "field": "user_id",
-                        "message": "User not found",
-                        "code": "not_found",
-                    }
-                ],
-            )
-        update_data = user_data.model_dump(exclude_unset=True)
-        # Check for duplicate email (excluding self)
-        if "email" in update_data:
-            existing_email = await self.db.execute(
-                select(UserORM).where(
-                    (UserORM.email == update_data["email"])
-                    & (UserORM.user_id != user_id)
-                )
-            )
-            if existing_email.scalar_one_or_none():
-                logger.warning(
-                    "Failed to update user due to duplicate email",
-                    email=update_data["email"],
-                )
-                raise BusinessException(
-                    message="A user with this email already exists",
-                    details=[
-                        {
-                            "field": "email",
-                            "message": "Email address is already in use",
-                            "code": "email_exists",
-                        }
-                    ],
-                )
-        if user_data.given_name is not None:
-            user.given_name = user_data.given_name
-        if user_data.family_name is not None:
-            user.family_name = user_data.family_name
-        if user_data.email is not None:
-            user.email = str(user_data.email)
+            logger.warning("User not found", extra={"user_id": user_id})
+            raise BusinessException(f"User with user_id '{user_id}' not found")
+        logger.info("User found", extra={"user_id": user_id})
+        return user
+
+    async def update_user(self, user_id: str, user_data: UserUpdate) -> UserORM:
+        """
+        Update an existing user by user_id.
+
+        Args:
+            user_id (str): The unique user identifier.
+            user_data (UserUpdate): The user update payload.
+
+        Returns:
+            UserORM: The updated user ORM object.
+
+        Raises:
+            BusinessException: If user is not found or on DB error.
+        """
+        logger.info("Updating user", extra={"user_id": user_id})
+        user = await self.get_user_by_id(user_id)
+        for field, value in user_data.model_dump(exclude_unset=True).items():
+            setattr(user, field, value)
         user.updated_at = datetime.now()
         try:
             await self.db.commit()
             await self.db.refresh(user)
-            logger.info(
-                "User updated successfully",
-                user_id=user.id,
-            )
-        except IntegrityError:
+        except IntegrityError as exc:
             await self.db.rollback()
             logger.warning(
-                "Failed to update user due to duplicate email",
-                email=update_data.get("email"),
+                "Duplicate email or DB error on user update",
+                extra={"error": str(exc)},
             )
-            raise BusinessException(
-                message="A user with this email already exists",
-                details=[
-                    {
-                        "field": "email",
-                        "message": "Email address is already in use",
-                        "code": "email_exists",
-                    }
-                ],
-            )
-        return UserInDB.model_validate(user)
+            raise BusinessException("A user with this email already exists.")
+        logger.info("User updated", extra={"user_id": user_id})
+        return user
 
     async def delete_user(self, user_id: str) -> None:
         """
-        Delete a user by their unique ID.
-        Raises BusinessException if user not found.
+        Delete a user by user_id.
+
+        Args:
+            user_id (str): The unique user identifier.
+
+        Raises:
+            BusinessException: If user is not found.
         """
-        logger.debug("Attempting to delete user", user_id=user_id)
-        result = await self.db.execute(
-            select(UserORM).where(UserORM.user_id == user_id)
-        )
-        user = result.scalar_one_or_none()
-        if not user:
-            raise BusinessException(
-                message=f"User with user_id '{user_id}' not found",
-                details=[
-                    {
-                        "field": "user_id",
-                        "message": "User not found",
-                        "code": "not_found",
-                    }
-                ],
-            )
+        logger.info("Deleting user", extra={"user_id": user_id})
+        user = await self.get_user_by_id(user_id)
         await self.db.delete(user)
         await self.db.commit()
-        logger.info("User deleted successfully", user_id=user_id)
+        logger.info("User deleted", extra={"user_id": user_id})
